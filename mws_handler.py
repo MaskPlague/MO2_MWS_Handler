@@ -2,8 +2,10 @@
 import winreg
 import os
 import mobase
-
-from PyQt6.QtWidgets import QMessageBox
+try:
+    from PyQt6.QtWidgets import QMessageBox
+except:
+    from PyQt5.QtWidgets import QMessageBox
 
 class mws_protocol_register(mobase.IPlugin):
     def name(self):
