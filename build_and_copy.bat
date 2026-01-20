@@ -11,7 +11,7 @@ set SEVEN_ZIP="C:\Program Files\7-Zip\7z.exe"
 
 echo Starting PyInstaller build for %EXE_SCRIPT%...
 
-rem pyinstaller %EXE_SCRIPT% --onefile -n %EXE_NAME% --noconsole
+pyinstaller %EXE_SCRIPT% --onefile -n %EXE_NAME% --noconsole
 
 rem Check if PyInstaller was successful
 
