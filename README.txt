@@ -1,17 +1,21 @@
 Installation:
-Copy the MWS Handler folder to your MO2/Plugins/ folder.
+	- Copy the MWS Handler and basic_games folder to your MO2/Plugins/ folder.
 
-0.0.2:
-mws-mo2://install/:game_id/:mod_id/:file_id
 
-Changed protocol from MWS to MWS-MO2.
+Change log:
+	- 0.0.2:
+		mws-mo2://install/:game_id/:mod_id/:file_id
 
-Uses the elements of the MWS-MO2 link to populate the download metadata file. 
+		Changed protocol from MWS to MWS-MO2.
 
-0.0.3:
-Gets the mod name (modName=), file version (version=), and mod version (newestVersion=) from the MWS api and puts them
-into the metadata file.
+		Uses the elements of the MWS-MO2 link to populate the download metadata file. 
 
-0.0.4:
-If we can't get the file or mod version then we change to their last update dates.
-Add callback on mod install in MO2, if the file repository is ModWorkshop's add a custom url in the meta.ini to the mod's page.
+	- 0.0.3:
+		Gets the mod name (modName=), file version (version=), and mod version (newestVersion=) from the MWS API and puts them
+		into the metadata file.
+
+	- 0.0.4:
+		Support for BLT and SuperBLT Libraries
+
+		If the file or mod version cannot be gotten then their last update dates are used instead.
+		Add callback on mod install in MO2, if the file repository is ModWorkshop's a custom url is added in the meta.ini for the mod's page.
