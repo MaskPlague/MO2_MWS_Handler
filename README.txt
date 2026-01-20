@@ -11,3 +11,7 @@ Uses the elements of the MWS-MO2 link to populate the download metadata file.
 0.0.3:
 Gets the mod name (modName=), file version (version=), and mod version (newestVersion=) from the MWS api and puts them
 into the metadata file.
+
+0.0.4:
+If we can't get the file or mod version then we change to their last update dates.
+Add callback on mod install in MO2, if the file repository is ModWorkshop's add a custom url in the meta.ini to the mod's page.
