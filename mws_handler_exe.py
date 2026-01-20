@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import QApplication, QLabel
 
 from urllib.request import urlretrieve
 from urllib.request import urlopen
+from urllib.parse import unquote
 
 #Compile command: pyinstaller mws_handler_exe.py --onefile -n MWS_Link_Handler --noconsole
 
@@ -32,7 +33,7 @@ class mws_handler():
             download_link = f"https://api.modworkshop.net/files/{file_id}/download"
             
             response = urlopen(download_link)
-            filename = response.headers.get_filename()
+            filename = unquote(response.headers.get_filename())
             response.close()
 
             available_name = self.get_available_name(download_location, filename)
