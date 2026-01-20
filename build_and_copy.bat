@@ -51,7 +51,7 @@ if "%1"=="all" (
     echo -----------------------------------------
     echo Zipping for distribution
 
-    %SEVEN_ZIP% a "MWS MO2 Link Handler.zip" "%DIST_DIR%" "README.txt"
+    %SEVEN_ZIP% a "MWS MO2 Link Handler.zip" "%DIST_DIR%" ".\basic_games" "README.txt"
 )
 
 echo Done
