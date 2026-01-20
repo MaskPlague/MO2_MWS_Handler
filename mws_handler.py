@@ -18,18 +18,17 @@ class mws_protocol_register(mobase.IPlugin):
     def init(self, organizer):
         self._organizer = organizer
         self._register_protocol()
+        self._organizer.modList().onModInstalled(self._mod_installed)
         return True
+    
+    def _mod_installed(self, mod:mobase.IModInterface):
+        if mod.repository() == "ModWorkshop":
+            mod.setUrl(f"https://modworkshop.net/mod/{mod.nexusId()}")
 
     def _register_protocol(self):
         protocol = "mws-mo2"
         download_dir = self._organizer.downloadsPath()
         self_path = os.path.join(os.path.split(self._organizer.getPluginDataPath())[0], 'MWS Handler')
-
-        # Code for testing via python
-        #exe_path = os.path.abspath(os.path.join(self_path, 'mws_handler_exe.py'))
-        #profile_name = os.getlogin()
-        #temp_python_exe = os.path.abspath(fr"C:\Users\{profile_name}\AppData\Local\Programs\Python\Python313\python.exe")
-        #command = f'"{temp_python_exe}" "{exe_path}" "{download_dir}" "%1"'
 
         # The path to the MWS link handler executable
         exe_path = exe_path = os.path.abspath(os.path.join(self_path, 'MWS_Link_Handler.exe'))
