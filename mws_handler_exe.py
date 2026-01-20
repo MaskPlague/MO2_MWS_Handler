@@ -17,6 +17,7 @@ class mws_handler():
     def __init__(self):   
         self.mod_name = "Unknown"
         self.file_version = "0.0.0.0"
+        self.mod_version = "0.0.0.0"
 
     def main(self):
         if len(sys.argv) > 2:
@@ -52,10 +53,14 @@ class mws_handler():
             name_thread = threading.Thread(target=self.get_mod_name_from_api, args=(mod_id,))
             name_thread.start()
 
-            version_thread = threading.Thread(target=self.get_file_version_from_api, args=(file_id,))
-            version_thread.start()
+            file_version_thread = threading.Thread(target=self.get_file_version_from_api, args=(file_id,))
+            file_version_thread.start()
 
-            version_thread.join()
+            mod_version_thread = threading.Thread(target=self.get_mod_version_from_api, args=(mod_id,))
+            mod_version_thread.start()
+
+            file_version_thread.join()
+            mod_version_thread.join()
             name_thread.join()
             download_thread.join()
 
@@ -72,7 +77,7 @@ class mws_handler():
                         "description=\n"+
                         f"modName={self.mod_name}\n"+
                         f"version={self.file_version}\n"+
-                        f"newestVersion={self.file_version}\n"+
+                        f"newestVersion={self.mod_version}\n"+
                         f"fileTime=@DateTime({r'\0\0\0\x10\0\x80\0\0\0\0\0\0\0\xff\xff\xff\xff\0'})\n"+
                         "fileCategory=0\n"+
                         "category=0\n"+
@@ -84,9 +89,9 @@ class mws_handler():
                 f.close()
 
     def get_mod_name_from_api(self, mod_id):
-        file_name_link = f"https://api.modworkshop.net/mods/{mod_id}"
+        mod_name_link = f"https://api.modworkshop.net/mods/{mod_id}"
         try:
-            response = urlopen(file_name_link)
+            response = urlopen(mod_name_link)
             json_data = json.load(response)
             response.close()
             self.mod_name = json_data.get("name", mod_id)
@@ -101,6 +106,15 @@ class mws_handler():
             response.close()
         except:
             self.file_version = file_id
+
+    def get_mod_version_from_api(self, mod_id):
+        mod_version_link = f"https://api.modworkshop.net/mods/{mod_id}/version"
+        try:
+            response = urlopen(mod_version_link)
+            self.mod_version = response.read().decode('utf-8')
+            response.close()
+        except:
+            pass
 
     def get_available_name(self, download_location, name, number = 0):
         if number == 0:
