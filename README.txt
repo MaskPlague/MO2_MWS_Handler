@@ -9,5 +9,5 @@ Changed protocol from MWS to MWS-MO2.
 Uses the elements of the MWS-MO2 link to populate the download metadata file. 
 
 0.0.3:
-Gets the mod name (modName=), file version (version=), and mod version (lastestVersion=) from the MWS api and puts them
+Gets the mod name (modName=), file version (version=), and mod version (newestVersion=) from the MWS api and puts them
 into the metadata file.
