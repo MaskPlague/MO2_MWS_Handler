@@ -56,7 +56,7 @@ class mws_handler():
             name_thread = threading.Thread(target=self.get_mod_name_from_api, args=(mod_id,))
             name_thread.start()
 
-            file_version_thread = threading.Thread(target=self.get_file_version_from_api, args=(file_id,))
+            file_version_thread = threading.Thread(target=self.get_file_version_and_date_from_api, args=(file_id,))
             file_version_thread.start()
 
             mod_version_thread = threading.Thread(target=self.get_mod_version_from_api, args=(mod_id,))
@@ -65,11 +65,13 @@ class mws_handler():
             file_version_thread.join()
             mod_version_thread.join()
             name_thread.join()
-            download_thread.join()
+            
             if self.mod_version.strip() == "" or self.file_version.strip() == "":
+                self.get_latest_file_date_from_api(mod_id)
                 self.mod_version = self.convert_time_to_version(self.mod_last_updated)
                 self.file_version = self.convert_time_to_version(self.file_last_updated)
-                
+
+            download_thread.join()
             download_metadata = os.path.join(download_location, available_name + '.meta')
             with open(download_metadata, 'w') as f:
                 f.write("[General]\n"+
@@ -104,12 +106,21 @@ class mws_handler():
             json_data:dict = json.load(response)
             response.close()
             self.mod_name = json_data.get("name", mod_id)
-            self.mod_last_updated = json_data.get("bumped_at", "2000-0-0T0")
         except:
             self.mod_name = mod_id
+    
+    def get_latest_file_date_from_api(self, mod_id):
+        mod_name_link = f"https://api.modworkshop.net/mods/{mod_id}/files/latest"
+        try:
+            response = urlopen(mod_name_link)
+            json_data:dict = json.load(response)
+            response.close()
+            self.mod_last_updated = json_data.get("updated_at", "2000-0-0T0")
+        except:
             self.mod_last_updated = "2000-0-0T0"
+            pass
 
-    def get_file_version_from_api(self, file_id):
+    def get_file_version_and_date_from_api(self, file_id):
         file_version_link = f"https://api.modworkshop.net/files/{file_id}"
         try:
             response = urlopen(file_version_link)
@@ -118,7 +129,7 @@ class mws_handler():
             self.file_version = json_data.get("version", "")
             self.file_last_updated = json_data.get("updated_at", "2000-0-0T0")
         except:
-            self.file_version = file_id
+            self.file_version = ""
             self.file_last_updated = "2000-0-0T0"
 
     def get_mod_version_from_api(self, mod_id):
@@ -128,7 +139,7 @@ class mws_handler():
             self.mod_version = response.read().decode('utf-8')
             response.close()
         except:
-            pass
+            self.mod_version = ""
 
     def get_available_name(self, download_location, name, number = 0):
         if number == 0:
@@ -175,4 +186,3 @@ class mws_handler():
 if __name__ == "__main__":
     handler = mws_handler()
     handler.main()
-    
