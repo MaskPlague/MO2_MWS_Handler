@@ -9,18 +9,19 @@ set DEST_DIR=D:\Modding\MO2\plugins\MWS Handler
 set DIST_DIR=.\MWS Handler
 set SEVEN_ZIP="C:\Program Files\7-Zip\7z.exe"
 
-echo Starting PyInstaller build for %EXE_SCRIPT%...
+IF "%1"=="all" (
+    echo Starting PyInstaller build for %EXE_SCRIPT%...
+    pyinstaller %EXE_SCRIPT% --onefile -n %EXE_NAME% --noconsole
 
-pyinstaller %EXE_SCRIPT% --onefile -n %EXE_NAME% --noconsole
+    rem Check if PyInstaller was successful
 
-rem Check if PyInstaller was successful
-
-IF %ERRORLEVEL% NEQ 0 (
-    echo PyInstaller build failed!
-    pause
-    EXIT /B 1
+    IF %ERRORLEVEL% NEQ 0 (
+        echo PyInstaller build failed!
+        pause
+        EXIT /B 1
+    )
+    echo -----------------------------------------
 )
-echo -----------------------------------------
 
 set SOURCE_EXE_PATH=.\dist\%EXE_NAME%.exe
 
@@ -28,8 +29,10 @@ rem create dest if it doesn't exist
 IF NOT EXIST "%DEST_DIR%" MKDIR "%DEST_DIR%""
 
 rem copy files to destination
-echo Copying the executable from "%SOURCE_EXE_PATH%" to "%DEST_DIR%"...
-copy "%SOURCE_EXE_PATH%" "%DEST_DIR%"
+IF "%1"=="all" (
+    echo Copying the executable from "%SOURCE_EXE_PATH%" to "%DEST_DIR%"...
+    copy "%SOURCE_EXE_PATH%" "%DEST_DIR%"
+)
 
 echo Copying "%INIT_SCRIPT%" to "%DEST_DIR%"...
 copy "%INIT_SCRIPT%" "%DEST_DIR%"
@@ -43,8 +46,12 @@ echo Now copying for distribution
 copy "%SOURCE_EXE_PATH%" "%DIST_DIR%"
 copy "%INIT_SCRIPT%" "%DIST_DIR%"
 copy "%MWS_SCRIPT%" "%DIST_DIR%"
-echo -----------------------------------------
-echo Zipping for distribution
 
-%SEVEN_ZIP% a "MWS MO2 Link Handler.zip" "%DIST_DIR%" "README.txt"
+if "%1"=="all" (
+    echo -----------------------------------------
+    echo Zipping for distribution
+
+    %SEVEN_ZIP% a "MWS MO2 Link Handler.zip" "%DIST_DIR%" "README.txt"
+)
+
 echo Done
