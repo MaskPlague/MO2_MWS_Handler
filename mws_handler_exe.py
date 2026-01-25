@@ -73,7 +73,7 @@ class mws_handler():
 
             download_thread.join()
             download_metadata = os.path.join(download_location, available_name + '.meta')
-            with open(download_metadata, 'w') as f:
+            with open(download_metadata, 'w', encoding='utf-8') as f:
                 f.write("[General]\n"+
                         "removed=false\n"+
                         f"gameName={game_id}\n"+
@@ -106,6 +106,7 @@ class mws_handler():
             json_data:dict = json.load(response)
             response.close()
             self.mod_name = json_data.get("name", mod_id)
+            print(self.mod_name)
         except:
             self.mod_name = mod_id
     
