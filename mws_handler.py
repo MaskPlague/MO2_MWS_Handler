@@ -166,16 +166,24 @@ class mws_protocol_register(mobase.IPlugin):
         model = self.data_holder.model
         if model is None:
             return
-        for row in range(model.rowCount()):
-            # Column 0 is the Filename
-            index_name = model.index(row, FILENAME_COLUMN)
-            item_name = model.data(index_name, Qt.ItemDataRole.DisplayRole)
-            if item_name == file_name:
-                # Column 1 is status
-                index_status = model.index(row, STATUS_COLUMN)
-                self.data_holder.data.update({file_name: {"progress": progress, "total": total}})
-                self.data_holder.view.update(index_status)
-                break
+        
+        start_index = model.index(0, FILENAME_COLUMN)
+        matching_indexes = model.match(
+            start_index, 
+            Qt.ItemDataRole.DisplayRole, 
+            file_name, 
+            1,
+            Qt.MatchFlag.MatchExactly | Qt.MatchFlag.MatchWrap
+        )
+
+        if matching_indexes:
+            index_name = matching_indexes[0]
+            row = index_name.row()
+            index_status = model.index(row, STATUS_COLUMN)
+            self.data_holder.data.update({file_name: {"progress": progress, "total": total}})
+            self.data_holder.view.update(index_status)
+        
+        return
 
     def _get_downloads(self, main_window: QMainWindow):
         if self.main_window is None:
