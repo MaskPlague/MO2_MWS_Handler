@@ -4,6 +4,7 @@ import psutil
 import winreg
 import threading
 import json
+import socket
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QLabel
@@ -13,6 +14,7 @@ from urllib.request import urlopen
 from urllib.parse import unquote
 
 #Compile command: pyinstaller mws_handler_exe.py --onefile -n MWS_Link_Handler --noconsole
+PROTOCOL = "mws-mo2"
 
 class mws_handler():
     def __init__(self):   
@@ -40,16 +42,17 @@ class mws_handler():
             download_path = os.path.join(download_location, available_name)
             if not self.is_mo2_running():
                 try:
-                    protocol = "mws-mo2"
+
                     base = winreg.HKEY_CURRENT_USER
-                    key = winreg.CreateKey(base, fr"Software\Classes\{protocol}")
+                    key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
                     mo2_path = winreg.QueryValueEx(key, 'mo_path')[0]
                     winreg.CloseKey(key)
                     if os.path.exists(mo2_path):
                         os.startfile(mo2_path)
                 except:
                     pass
-            download_thread = threading.Thread(target=urlretrieve, args=(download_link, download_path))
+
+            download_thread = threading.Thread(target=self.download_file, args=(download_link, download_path, available_name))
             download_thread.start()
             self.show_message('Download Started', 1500)
 
@@ -71,7 +74,6 @@ class mws_handler():
                 self.mod_version = self.convert_time_to_version(self.mod_last_updated)
                 self.file_version = self.convert_time_to_version(self.file_last_updated)
 
-            download_thread.join()
             download_metadata = os.path.join(download_location, available_name + '.meta')
             with open(download_metadata, 'w', encoding='utf-8') as f:
                 f.write("[General]\n"+
@@ -95,6 +97,66 @@ class mws_handler():
                         "uninstalled=false\n"+
                         "paused=false")
                 f.close()
+            download_thread.join()
+
+    def download_file(self, download_link, download_path, filename):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        connected = False
+        
+        def try_connect():
+            nonlocal sock
+            nonlocal connected
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                base = winreg.HKEY_CURRENT_USER
+                key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
+                port = int(winreg.QueryValueEx(key, 'port')[0])
+                winreg.CloseKey(key)
+                if port != -1:
+                    sock.connect(('127.0.0.1', port))
+                    connected = True
+            except ConnectionRefusedError:
+                connected = False
+            except Exception as e:
+                print(e)
+                connected = False
+
+        try_connect()
+
+        def progress_hook(block_num, block_size, total_size):
+            nonlocal sock
+            nonlocal connected
+            try:
+                if connected:
+                    current_downloaded = block_num * block_size
+                    msg = {
+                        "file": filename,
+                        "cur": current_downloaded,
+                        "max": total_size
+                    }
+                    sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
+                else:
+                    raise ConnectionError("Not connected")
+            except:
+                if connected:
+                    try:
+                        sock.close()
+                    except:
+                        pass
+                    connected = False
+                try_connect()
+
+        try:
+            urlretrieve(download_link, download_path, reporthook=progress_hook)
+            
+            if connected:
+                msg = {"file": filename, "cur": -1, "max": -1}
+                sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
+        finally:
+            try:
+                sock.close()
+            except:
+                pass
 
     def convert_time_to_version(self, time:str):
         return "d" + time.split("T")[0].replace('-', '.')
@@ -106,7 +168,6 @@ class mws_handler():
             json_data:dict = json.load(response)
             response.close()
             self.mod_name = json_data.get("name", mod_id)
-            print(self.mod_name)
         except:
             self.mod_name = mod_id
     

@@ -20,3 +20,6 @@ Change log:
     - If the file or mod version cannot be gotten then their last update dates are used instead.
     - Add callback on mod install in MO2, if the file repository is ModWorkshop's a custom url is added in the meta.ini for the mod's page.
     - MO2 v2.4 support for MWS Handler via try catch importing PyQt5
+
+- 0.1.0:
+    - Added download progress to MO2 downloads tab
