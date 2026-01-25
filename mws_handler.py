@@ -105,6 +105,8 @@ class HybridDownloadDelegate(QStyledItemDelegate):
             # --- DRAW CUSTOM PROGRESS BAR ---
             progress_value = data["progress"]
             max_value = data["total"]
+            if max_value <= 0:
+                return
             total_size = self.format_bytes(max_value)
             # Setup the style option for a progress bar
             progress_opt = QStyleOptionProgressBar()
