@@ -193,7 +193,7 @@ class mws_protocol_register(mobase.IPlugin):
         self.data_holder.refresh = downloadTab.findChild(QPushButton, "btnRefreshDownloads").click
         downloadView = downloadTab.findChild(QTreeView, "downloadView")
 
-        current_delegate = downloadView.itemDelegateForColumn(STATUS_COLUMN)
+        current_delegate = downloadView.itemDelegate()
         if not isinstance(current_delegate, HybridDownloadDelegate):
             self.new_delegate = HybridDownloadDelegate(current_delegate, self.data_holder, downloadView)
             downloadView.setItemDelegateForColumn(STATUS_COLUMN, self.new_delegate)
