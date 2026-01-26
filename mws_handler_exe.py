@@ -5,6 +5,7 @@ import winreg
 import threading
 import json
 import socket
+import subprocess
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QLabel
@@ -12,6 +13,7 @@ from PyQt6.QtWidgets import QApplication, QLabel
 from urllib.request import urlretrieve
 from urllib.request import urlopen
 from urllib.parse import unquote
+
 
 #Compile command: pyinstaller mws_handler_exe.py --onefile -n MWS_Link_Handler --noconsole
 PROTOCOL = "mws-mo2"
@@ -23,6 +25,10 @@ class mws_handler():
         self.mod_version = "0.0.0.0"
         self.mod_last_updated = "2000-0-0T0"
         self.file_last_updated = "2000-0-0T0"
+        self.cancelled = False
+        self.sock = None
+        self.downloading = True
+        self.e = None
 
     def main(self):
         if len(sys.argv) > 2:
@@ -43,7 +49,7 @@ class mws_handler():
                 last_game = "MWS_None"
 
             if last_game != "None" and last_game != game_id:
-                self.show_message(f'Download is for "{game_id}" but, the last opened instance is for "{last_game}".', 5000)
+                self.show_message(f'Download is for "{game_id}" but, the last opened instance is for "{last_game}".\nDownload cancelled.', 5000)
                 return
             
             try:
@@ -55,29 +61,29 @@ class mws_handler():
                 return
 
             available_name = self.get_available_name(download_location, filename)
+            #self.log = open(rf"D:\Modding\MO2\plugins\MWS Handler\{available_name}log.txt", 'w', encoding='utf-8')
+            #sys.stdout = self.log
+            #sys.stderr = self.log
             download_path = os.path.join(download_location, available_name)
-            if not self.is_mo2_running():
-                try:
-                    base = winreg.HKEY_CURRENT_USER
-                    key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
-                    mo2_path = winreg.QueryValueEx(key, 'mo_path')[0]
-                    winreg.CloseKey(key)
-                    if os.path.exists(mo2_path):
-                        os.startfile(mo2_path)
-                except:
-                    pass
 
-            download_thread = threading.Thread(target=self.download_file, args=(download_link, download_path, available_name))
+            open_mo2_thread = threading.Thread(target=self.open_mo2_if_not_running, daemon=True)
+            open_mo2_thread.start()
+
+            download_thread = threading.Thread(target=self.download_file, args=(download_link, download_path, available_name), daemon=True)
             download_thread.start()
+            print("Download Started")
             self.show_message('Download Started', 1500)
 
-            name_thread = threading.Thread(target=self.get_mod_name_from_api, args=(mod_id,))
+            cancel_thread = threading.Thread(target=self.listen_for_cancel, daemon=True)
+            cancel_thread.start()
+
+            name_thread = threading.Thread(target=self.get_mod_name_from_api, args=(mod_id,), daemon=True)
             name_thread.start()
 
-            file_version_thread = threading.Thread(target=self.get_file_version_and_date_from_api, args=(file_id,))
+            file_version_thread = threading.Thread(target=self.get_file_version_and_date_from_api, args=(file_id,), daemon=True)
             file_version_thread.start()
 
-            mod_version_thread = threading.Thread(target=self.get_mod_version_from_api, args=(mod_id,))
+            mod_version_thread = threading.Thread(target=self.get_mod_version_from_api, args=(mod_id,), daemon=True)
             mod_version_thread.start()
 
             file_version_thread.join()
@@ -90,86 +96,151 @@ class mws_handler():
                 self.file_version = self.convert_time_to_version(self.file_last_updated)
 
             download_metadata = os.path.join(download_location, available_name + '.meta')
-            with open(download_metadata, 'w', encoding='utf-8') as f:
-                f.write("[General]\n"+
-                        "removed=false\n"+
-                        f"gameName={game_id}\n"+
-                        f"modID={mod_id}\n"+
-                        f"fileID={file_id}\n"+
-                        f"url=https://modworkshop.net/mod/{mod_id}\n"+
-                        f"hasCustomUrl=true\n"+
-                        f"name={os.path.splitext(filename)[0]}\n"+
-                        "description=\n"+
-                        f"modName={self.mod_name}\n"+
-                        f"version={self.file_version}\n"+
-                        f"newestVersion={self.mod_version}\n"+
-                        f"fileTime=@DateTime({r'\0\0\0\x10\0\x80\0\0\0\0\0\0\0\xff\xff\xff\xff\0'})\n"+
-                        "fileCategory=0\n"+
-                        "category=0\n"+
-                        "repository=ModWorkshop\n"+
-                        f"userData=@Variant({r'\0\0\0\b\0\0\0\0'})\n"+
-                        "installed=false\n"+
-                        "uninstalled=false\n"+
-                        "paused=false")
-                f.close()
             download_thread.join()
+            if self.cancelled:
+                self.show_message(f"Download for {filename} cancelled.\n{self.e}", 3000)
+            elif self.e is not None:
+                self.show_message(f"Failed to download file from: {download_link}\nError: {self.e}", 5000)
+            else:
+                with open(download_metadata, 'w', encoding='utf-8') as f:
+                    f.write("[General]\n"+
+                            "removed=false\n"+
+                            f"gameName={game_id}\n"+
+                            f"modID={mod_id}\n"+
+                            f"fileID={file_id}\n"+
+                            f"url=https://modworkshop.net/mod/{mod_id}\n"+
+                            f"hasCustomUrl=true\n"+
+                            f"name={os.path.splitext(filename)[0]}\n"+
+                            "description=\n"+
+                            f"modName={self.mod_name}\n"+
+                            f"version={self.file_version}\n"+
+                            f"newestVersion={self.mod_version}\n"+
+                            f"fileTime=@DateTime({r'\0\0\0\x10\0\x80\0\0\0\0\0\0\0\xff\xff\xff\xff\0'})\n"+
+                            "fileCategory=0\n"+
+                            "category=0\n"+
+                            "repository=ModWorkshop\n"+
+                            f"userData=@Variant({r'\0\0\0\b\0\0\0\0'})\n"+
+                            "installed=false\n"+
+                            "uninstalled=false\n"+
+                            "paused=false")
+                    f.close()
+            open_mo2_thread.join()
+            sys.exit(0)
+
+    def listen_for_cancel(self):
+        try:
+            while self.downloading:
+                if self.connected and not self.cancelled:
+                    try:
+                        data = self.sock.recv(1024)
+                    except:
+                        continue
+                    if not data:
+                        break
+                    try:
+                        msg = json.loads(data.decode('utf-8'))
+                        if msg.get("action") == "cancel":
+                            self.cancelled = True
+                            break
+                    except:
+                        pass
+        except:
+            pass
 
     def download_file(self, download_link, download_path, filename):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        connected = False
-        
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connected = False
+        connecting = False
+
         def try_connect():
-            nonlocal sock
-            nonlocal connected
+            nonlocal connecting
             try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 base = winreg.HKEY_CURRENT_USER
                 key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
                 port = int(winreg.QueryValueEx(key, 'port')[0])
                 winreg.CloseKey(key)
                 if port != -1:
-                    sock.connect(('127.0.0.1', port))
-                    connected = True
-            except ConnectionRefusedError:
-                connected = False
-            except Exception as e:
-                print(e)
-                connected = False
+                    self.sock.connect(('127.0.0.1', port))
+                    self.connected = True
+                    print(f"conneted on port: {port}")
+            except:
+                self.connected = False
+            connecting = False
 
         try_connect()
 
         def progress_hook(block_num, block_size, total_size):
-            nonlocal sock
-            nonlocal connected
+            nonlocal connecting
+            if self.cancelled:
+                print("progress_hook, user cancelled download")
+                raise InterruptedError("User Cancelled Download")
             try:
-                if connected:
+                if self.connected:
                     current_downloaded = block_num * block_size
                     msg = {
                         "file": filename,
                         "cur": current_downloaded,
                         "max": total_size
                     }
-                    sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
+                    self.sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
                 else:
                     raise ConnectionError("Not connected")
             except:
-                if connected:
+                if self.connected:
                     try:
-                        sock.close()
+                        print("closing socket")
+                        self.sock.close()
                     except:
                         pass
-                    connected = False
-                try_connect()
+                    self.connected = False
+                if not self.cancelled and self.downloading:
+                    #print("progress_hook, retry connect")
+                    if not connecting:
+                        connecting = True
+                        threading.Thread(target=try_connect, daemon=True).start()
 
         try:
-            urlretrieve(download_link, download_path, reporthook=progress_hook)
-            
-            if connected:
-                msg = {"file": filename, "cur": -1, "max": -1}
-                sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
-        finally:
             try:
-                sock.close()
+                urlretrieve(download_link, download_path, reporthook=progress_hook)
+            except InterruptedError as e:
+                print(f"Canceled: {e}")
+                self.e = e
+                try:
+                    if not self.connected:
+                        try_connect()
+                    if self.connected:
+                        msg = {"file": filename, "cur": -1, "max": -1}
+                        self.sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
+                finally:
+                    if os.path.exists(download_path):
+                        try:
+                            os.remove(download_path)
+                        except:
+                            pass
+            except Exception as e:
+                print(f"Exception: {e}")
+                self.e = e
+                if os.path.exists(download_path):
+                    try:
+                        os.remove(download_path)
+                    except:
+                        pass
+            print(f"send download complete message: {self.connected}")
+            if not self.connected:
+                try_connect()
+            if self.connected:
+                try:
+                    msg = {"file": filename, "cur": -1, "max": -1}
+                    self.sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
+                except:
+                    pass
+        finally:
+            print("finishing up download")
+            self.downloading = False
+            try:
+                print("closing socket")
+                self.sock.close()
             except:
                 pass
 
