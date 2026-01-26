@@ -9,18 +9,46 @@ import threading
 try:
     from PyQt6.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle, 
                                  QStyledItemDelegate, QStyleOptionViewItem, QStyleOptionProgressBar, 
-                                 QApplication, QPushButton)
-    from PyQt6.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel
+                                 QApplication, QPushButton, QMenu)
+    from PyQt6.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent
 except:
     from PyQt5.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle, 
                                  QStyledItemDelegate, QStyleOptionViewItem, QStyleOptionProgressBar, 
-                                 QApplication, QPushButton)
-    from PyQt5.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel
+                                 QApplication, QPushButton, QMenu)
+    from PyQt5.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent
 
 SIZE_COLUMN = 2
 STATUS_COLUMN = 1
 FILENAME_COLUMN = 0
 PROTOCOL = "mws-mo2"
+
+class ContextMenuHijacker(QObject):
+    def __init__(self, download_view, data_holder, cancel_callback):
+        super().__init__()
+        self.download_view: QTreeView = download_view
+        self.data_holder: Data_Holder = data_holder
+        self.cancel_callback = cancel_callback
+
+    def eventFilter(self, obj, event: QEvent):
+        if event.type() == QEvent.Type.Show and isinstance(obj, QMenu):
+            if obj.parent() == self.download_view:
+                self.change_contect_menu(obj)
+        
+        return False
+
+    def change_contect_menu(self, menu: QMenu):
+        selection_model = self.download_view.selectionModel()
+        if not selection_model.hasSelection():
+            return
+        index = selection_model.currentIndex()
+        file_name = index.sibling(index.row(), FILENAME_COLUMN).data(Qt.ItemDataRole.DisplayRole)
+
+        if file_name in self.data_holder.data:
+            for i, action in enumerate(menu.actions()):
+                if i not in (3,4,5):
+                    menu.removeAction(action)
+            action = menu.addAction("Cancel MWS Download")
+            action.triggered.connect(lambda checked, f=file_name: self.cancel_callback(f))
 
 class ProgressListener(QObject):
     # filename, current_bytes, total_bytes
@@ -32,6 +60,7 @@ class ProgressListener(QObject):
         self.server_socket = None
         self.thread = threading.Thread(target=self.run_server, daemon=True)
         self.thread.start()
+        self.active_sockets:dict = {}
 
     def run_server(self):
         try:
@@ -54,7 +83,8 @@ class ProgressListener(QObject):
         except Exception as e:
             print(f"Socket server error: {e}")
 
-    def handle_client(self, conn):
+    def handle_client(self, conn: socket.socket):
+        current_filename  = None
         with conn:
             buffer = ""
             connected = True
@@ -68,11 +98,35 @@ class ProgressListener(QObject):
                         line, buffer = buffer.split("\n", 1)
                         try:
                             msg = json.loads(line)
-                            self.progress_received.emit(msg['file'], msg['cur'], msg['max'])
+                            file_name = msg['file']
+                            progress = msg['cur']
+                            total = msg['max']
+                            if current_filename == None:
+                                current_filename = file_name
+                                self.active_sockets[file_name] = conn
+                            self.progress_received.emit(file_name, progress, total)
+
+                            if total == -1 or total == progress:
+                                if current_filename in self.active_sockets:
+                                    self.active_sockets.pop(current_filename)
+
                         except json.JSONDecodeError:
                             pass
                 except:
                     connected = False
+
+    def cancel_download(self, file_name):
+        if file_name in self.active_sockets:
+            try:
+                print(f"Sending cancel command for {file_name}")
+                conn: socket.socket = self.active_sockets.pop(file_name)
+                
+                # Send the cancel command
+                cmd = json.dumps({"action": "cancel"}) + "\n"
+                conn.sendall(cmd.encode('utf-8'))
+
+            except Exception as e:
+                print(f"Failed to send cancel: {e}")
 
     def stop(self):
         self.running = False
@@ -100,7 +154,7 @@ class HybridDownloadDelegate(QStyledItemDelegate):
         
     def paint(self, painter, option: QStyleOptionViewItem, index: QModelIndex):
         file_name = self.data_holder.model.index(index.row(), 0).data(Qt.ItemDataRole.DisplayRole)
-        data = self.data_holder.data.get(file_name, None)
+        data = self.data_holder.data.get(file_name)
         if data is not None:
             # --- DRAW CUSTOM PROGRESS BAR ---
             progress_value = data["progress"]
@@ -132,6 +186,7 @@ class Data_Holder():
     view:QTreeView = None
     refresh:QPushButton.click = None
     data = {}
+
 
 class mws_protocol_register(mobase.IPlugin):
     def name(self):
@@ -196,6 +251,15 @@ class mws_protocol_register(mobase.IPlugin):
         self.data_holder.refresh = downloadTab.findChild(QPushButton, "btnRefreshDownloads").click
         downloadView = downloadTab.findChild(QTreeView, "downloadView")
 
+        #Takeover the context menu for downloads
+        self.menu_hijacker = ContextMenuHijacker(
+            downloadView, 
+            self.data_holder, 
+            self.listener.cancel_download
+        )
+        QApplication.instance().installEventFilter(self.menu_hijacker)
+
+        #Set game for checking if download is for correct game
         try:
             game_name = self._organizer.managedGame().gameShortName()
         except:
