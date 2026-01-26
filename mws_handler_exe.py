@@ -33,6 +33,18 @@ class mws_handler():
             mod_id = split[-2]
             game_id = split[-3]
             download_link = f"https://api.modworkshop.net/files/{file_id}/download"
+
+            try:
+                base = winreg.HKEY_CURRENT_USER
+                key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
+                last_game = winreg.QueryValueEx(key, 'game')[0]
+                winreg.CloseKey(key)
+            except:
+                last_game = "MWS_None"
+
+            if last_game != "None" and last_game != game_id:
+                self.show_message(f'Download is for "{game_id}" but, the last opened instance is for "{last_game}".', 5000)
+                return
             
             response = urlopen(download_link)
             filename = unquote(response.headers.get_filename())
@@ -42,7 +54,6 @@ class mws_handler():
             download_path = os.path.join(download_location, available_name)
             if not self.is_mo2_running():
                 try:
-
                     base = winreg.HKEY_CURRENT_USER
                     key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
                     mo2_path = winreg.QueryValueEx(key, 'mo_path')[0]

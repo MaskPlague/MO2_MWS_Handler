@@ -23,3 +23,6 @@ Change log:
 
 - 0.1.0:
     - Added download progress to MO2 downloads tab
+
+- 0.1.1:
+    - Reject a download when it is for a different game then the last opened game instance.

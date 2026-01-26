@@ -193,6 +193,18 @@ class mws_protocol_register(mobase.IPlugin):
         self.data_holder.refresh = downloadTab.findChild(QPushButton, "btnRefreshDownloads").click
         downloadView = downloadTab.findChild(QTreeView, "downloadView")
 
+        try:
+            game_name = self._organizer.managedGame().gameShortName()
+        except:
+            game_name = "MWS_None"
+        try:
+            base = winreg.HKEY_CURRENT_USER
+            key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}", 0, winreg.KEY_SET_VALUE)
+            winreg.SetValueEx(key, "game", 0, winreg.REG_SZ, str(game_name))
+            winreg.CloseKey(key)
+        except Exception as e:
+            print(f"Failed to set opened game to registry: {e}")
+
         current_delegate = downloadView.itemDelegate()
         if not isinstance(current_delegate, HybridDownloadDelegate):
             self.new_delegate = HybridDownloadDelegate(current_delegate, self.data_holder, downloadView)
