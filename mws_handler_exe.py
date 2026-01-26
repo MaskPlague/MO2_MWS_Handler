@@ -46,9 +46,13 @@ class mws_handler():
                 self.show_message(f'Download is for "{game_id}" but, the last opened instance is for "{last_game}".', 5000)
                 return
             
-            response = urlopen(download_link)
-            filename = unquote(response.headers.get_filename())
-            response.close()
+            try:
+                response = urlopen(download_link)
+                filename = unquote(response.headers.get_filename())
+                response.close()
+            except:
+                self.show_message(f'Cannot connect to https://api.modworkshop.net/.\nDownload cancelled.', 5000)
+                return
 
             available_name = self.get_available_name(download_location, filename)
             download_path = os.path.join(download_location, available_name)
