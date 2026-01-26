@@ -221,11 +221,11 @@ class mws_protocol_register(mobase.IPlugin):
         self_path = os.path.join(os.path.split(self._organizer.getPluginDataPath())[0], 'MWS Handler')
 
         # The path to the MWS link handler executable
-        exe_path = exe_path = os.path.abspath(os.path.join(self_path, 'MWS_Link_Handler.exe'))
+        exe_path = os.path.normpath(os.path.join(self_path, 'MWS_Link_Handler.exe'))
         command = f'"{exe_path}" "{download_dir}" "%1"'
 
         # MO2 path passed for launching if the program is not open
-        mo2_path = os.path.join(*os.path.normpath(self_path).split(os.sep)[:3], 'ModOrganizer.exe')
+        mo2_path = os.path.normpath(os.path.join(os.path.split(os.path.split(self._organizer.getPluginDataPath())[0])[0], 'ModOrganizer.exe'))
         try:
             # Use CURRENT_USER instead of CLASSES_ROOT to avoid needing admin
             base = winreg.HKEY_CURRENT_USER
