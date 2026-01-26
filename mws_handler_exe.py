@@ -217,15 +217,18 @@ class mws_handler():
     def get_available_name(self, download_location, name, number = 0):
         if number == 0:
             new_name = name
-            download_path = os.path.join(download_location, name)
         else:
             split = os.path.splitext(name)
             new_name = split[0] + '(' + str(number) + ')' + split[1]
-            download_path = os.path.join(download_location, new_name)
-        if os.path.exists(download_path):
-            return self.get_available_name(download_location, name, number+1)
-        else:
+        
+        download_path = os.path.join(download_location, new_name)
+        
+        try:
+            with open(download_path, 'x') as f:
+                pass
             return new_name
+        except:
+            return self.get_available_name(download_location, name, number+1)
         
     def is_mo2_running(self):
         for process in psutil.process_iter(['name']):
