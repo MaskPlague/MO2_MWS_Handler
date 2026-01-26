@@ -26,3 +26,8 @@ Change log:
 
 - 0.1.1:
     - Reject a download when it is for a different game then the last opened game instance.
+
+- 0.1.2:
+    - Added cancel download button to context menu of MO2 downloads
+    - Fix "Failed to delete temp folder" issue
+    - Fix race condition that would occur if you spammed the download button.
