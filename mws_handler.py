@@ -158,8 +158,11 @@ class mws_protocol_register(mobase.IPlugin):
     
     def on_external_progress(self, file_name, progress, total):
         #If total is -1 the download is complete
-        if total == -1:
-            self.data_holder.data.pop(file_name)
+        if total == -1 or progress == total:
+            print(f"Download completed: {file_name}")
+            if file_name in self.data_holder.data:
+                self.data_holder.data.pop(file_name)
+            self.data_holder.view.update()
             self.data_holder.refresh()
             return
         
@@ -205,6 +208,7 @@ class mws_protocol_register(mobase.IPlugin):
         except Exception as e:
             print(f"Failed to set opened game to registry: {e}")
 
+        #Takeover the item delegate for downloads
         current_delegate = downloadView.itemDelegate()
         if not isinstance(current_delegate, HybridDownloadDelegate):
             self.new_delegate = HybridDownloadDelegate(current_delegate, self.data_holder, downloadView)
