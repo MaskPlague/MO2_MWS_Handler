@@ -312,8 +312,8 @@ class mws_handler():
         return False
     
     #Jump through hoops to launch MO2 without allowing it access to pyInstaller's temp _MEI folder
-    #If MO2 touches the _MEI folder than once the download finishes pyInstaller will try to delete the temp _MEI folder
-    #but MO2 will be locking the MSVC dlls and it will give an error about not being able to delete the temp _MEI folder
+    #If MO2 touches the _MEI folder then once the download finishes pyInstaller will try to delete the temp _MEI folder
+    #but, MO2 will be locking the MSVC dlls and it will give an error about not being able to delete the temp _MEI folder
     def open_mo2_if_not_running(self):
         if not self.is_mo2_running():
             try:
