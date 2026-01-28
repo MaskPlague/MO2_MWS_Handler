@@ -31,3 +31,6 @@ Change log:
     - Added cancel download button to context menu of MO2 downloads
     - Fix "Failed to delete temp folder" issue
     - Fix race condition that would occur if you spammed the download button.
+
+- 0.1.3:
+    - Set nexus mod id to 0 when a mod from MWS is installed to disable the "Visit on Nexus" option in the modlist context menu

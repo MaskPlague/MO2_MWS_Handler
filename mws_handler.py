@@ -283,6 +283,7 @@ class mws_protocol_register(mobase.IPlugin):
     def _mod_installed(self, mod:mobase.IModInterface):
         if mod.repository() == "ModWorkshop":
             mod.setUrl(f"https://modworkshop.net/mod/{mod.nexusId()}")
+            mod.setNexusID(0)
 
     def _register_protocol(self):
         download_dir = self._organizer.downloadsPath()
