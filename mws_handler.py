@@ -32,11 +32,11 @@ class ContextMenuHijacker(QObject):
     def eventFilter(self, obj, event: QEvent):
         if event.type() == QEvent.Type.Show and isinstance(obj, QMenu):
             if obj.parent() == self.download_view:
-                self.change_contect_menu(obj)
+                self.change_context_menu(obj)
         
         return False
 
-    def change_contect_menu(self, menu: QMenu):
+    def change_context_menu(self, menu: QMenu):
         selection_model = self.download_view.selectionModel()
         if not selection_model.hasSelection():
             return
