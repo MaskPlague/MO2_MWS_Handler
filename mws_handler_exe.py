@@ -2,12 +2,10 @@ import sys
 import os
 import psutil
 import winreg
-import threading
+from threading import Thread
 import json
 import socket
-
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtWidgets import QApplication, QLabel
+import tkinter as tk
 
 from urllib.request import urlretrieve
 from urllib.request import urlopen
@@ -69,24 +67,24 @@ class mws_handler():
             #sys.stderr = self.log
             download_path = os.path.join(download_location, available_name)
 
-            open_mo2_thread = threading.Thread(target=self.open_mo2_if_not_running, daemon=True)
+            open_mo2_thread = Thread(target=self.open_mo2_if_not_running, daemon=True)
             open_mo2_thread.start()
 
-            download_thread = threading.Thread(target=self.download_file, args=(download_link, download_path, available_name), daemon=True)
+            download_thread = Thread(target=self.download_file, args=(download_link, download_path, available_name), daemon=True)
             download_thread.start()
             print("Download Started")
             self.show_message('Download Started', 1500)
 
-            cancel_thread = threading.Thread(target=self.listen_for_cancel, daemon=True)
+            cancel_thread = Thread(target=self.listen_for_cancel, daemon=True)
             cancel_thread.start()
 
-            name_thread = threading.Thread(target=self.get_mod_name_from_api, args=(mod_id,), daemon=True)
+            name_thread = Thread(target=self.get_mod_name_from_api, args=(mod_id,), daemon=True)
             name_thread.start()
 
-            file_version_thread = threading.Thread(target=self.get_file_version_and_date_from_api, args=(file_id,), daemon=True)
+            file_version_thread = Thread(target=self.get_file_version_and_date_from_api, args=(file_id,), daemon=True)
             file_version_thread.start()
 
-            mod_version_thread = threading.Thread(target=self.get_mod_version_from_api, args=(mod_id,), daemon=True)
+            mod_version_thread = Thread(target=self.get_mod_version_from_api, args=(mod_id,), daemon=True)
             mod_version_thread.start()
 
             file_version_thread.join()
@@ -201,7 +199,7 @@ class mws_handler():
                     #print("progress_hook, retry connect")
                     if not connecting:
                         connecting = True
-                        threading.Thread(target=try_connect, daemon=True).start()
+                        Thread(target=try_connect, daemon=True).start()
 
         try:
             try:
@@ -330,27 +328,36 @@ class mws_handler():
                 pass
 
     def show_message(self, msg, duration=2000):
-        app = QApplication([])
-        label = QLabel(msg)
-        label.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool |
-                            Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.X11BypassWindowManagerHint)
-        label.setStyleSheet("""
-            QLabel {
-                color: black;
-                padding: 10px;
-                border-radius: 1px;
-                border: 1px solid black;
-                font: 12pt "Segoe UI";
-            }
-        """)
-        label.adjustSize()
-        label.show()
-        screen_geometry = app.primaryScreen().geometry()
-        y = screen_geometry.height() - screen_geometry.height() // 3
-        label.move(label.x(), y)
-        QTimer.singleShot(duration, label.close)
-        QTimer.singleShot(duration + 500, app.quit)
-        app.exec()
+        root = tk.Tk()
+        root.overrideredirect(True)
+        root.attributes('-topmost', True)
+
+        label = tk.Label(
+            root, 
+            text=msg, 
+            font=("Segoe UI", 12),
+            fg="black",
+            bg="#f0f0f0",  # Light gray background (standard system look)
+            padx=10,       # Padding
+            pady=10,       # Padding
+            relief="solid",
+            borderwidth=1
+        )
+        label.pack()
+        root.update_idletasks() 
+        
+        width = root.winfo_width()
+        height = root.winfo_height()
+        screen_height = root.winfo_screenheight()
+        sceeen_width = root.winfo_screenwidth()
+
+        x_pos = (sceeen_width // 2) - (width // 2)
+        y_pos = (screen_height - (screen_height // 3)) - (height // 2)
+        
+        root.geometry(f'{width}x{height}+{x_pos}+{y_pos}')
+
+        root.after(duration, root.destroy)
+        root.mainloop()
 
 if __name__ == "__main__":
     handler = mws_handler()
