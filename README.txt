@@ -34,3 +34,8 @@ Change log:
 
 - 0.1.3:
     - Set nexus mod id to 0 when a mod from MWS is installed to disable the "Visit on Nexus" option in the modlist context menu
+
+- 0.1.5:
+    - Convert to tkinter from PyQt6. Reduces exe size from 36.3MB to 11.9MB
+    - Fix slow downloads when MO2 is closed
+    - Change duplicate download logic to replicate MO2's. We now ask the user if they want to redownload the file.
