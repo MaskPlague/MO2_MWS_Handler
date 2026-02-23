@@ -241,8 +241,9 @@ class mws_protocol_register(mobase.IPlugin):
             print(f"Download completed: {file_name}")
             if file_name in self.data_holder.data:
                 self.data_holder.data.pop(file_name)
-            self.data_holder.view.update()
-            self.data_holder.refresh()
+            if self.data_holder.view != None:
+                self.data_holder.view.update()
+                self.data_holder.refresh()
             return
         
         model = self.data_holder.model
