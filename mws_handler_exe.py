@@ -8,6 +8,7 @@ import socket
 import time
 
 import tkinter as tk
+from tkinter import messagebox
 
 from urllib.request import urlretrieve
 from urllib.request import urlopen
@@ -34,27 +35,38 @@ class mws_handler():
         self.e = None
 
     def main(self):
+        #sys.argv should be [exe, download location, mws url protocol link]
         if len(sys.argv) > 2:
             download_location = sys.argv[1]
             link = sys.argv[2]
-            split = link.split('/')
+            split = link.split('/') #link should be mws-mo2://install/game_id/mod_id/file_id
             file_id = split[-1]
             mod_id = split[-2]
             game_id = split[-3]
             download_link = f"https://api.modworkshop.net/files/{file_id}/download"
-
+            error = None
             try:
+                #Set via MO2 plugin and retrieved here
                 base = winreg.HKEY_CURRENT_USER
                 key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
                 last_game = winreg.QueryValueEx(key, 'game')[0]
                 winreg.CloseKey(key)
-            except:
+            except Exception as e:
                 last_game = "MWS_None"
+                error = e
 
-            if last_game != "None" and last_game != game_id:
+            #If the game instance does not match do not download
+            if last_game != "MWS_None" and last_game != game_id:
                 self.show_message(f'Download is for "{game_id}" but, the last opened instance is for "{last_game}".\nDownload cancelled.', 5000)
                 return
-            
+            elif last_game == "MWS_None":
+                self.show_message('An error was encountered while getting the last opened MO2 instance game name.\n'+
+                                  'Ensure the MWS MO2 plugin is installed and then restart MO2.\n'+
+                                 f'Error: {error}\n'+
+                                  'Download Cancelled.', 5000)
+                return
+
+            #Get filename and determine if the api is working                
             try:
                 response = urlopen(download_link)
                 filename = unquote(response.headers.get_filename())
@@ -63,19 +75,48 @@ class mws_handler():
                 self.show_message(f'Cannot connect to https://api.modworkshop.net/.\nDownload cancelled.', 5000)
                 return
 
+            #Get the latest version of the mod and file
+            file_version_thread = Thread(target=self.get_file_version_and_date_from_api, args=(file_id,), daemon=True)
+            file_version_thread.start()
+            
+            mod_version_thread = Thread(target=self.get_mod_version_from_api, args=(mod_id,), daemon=True)
+            mod_version_thread.start()
+
+            debug_print("Download Started")
+            self.show_message('Download Started', 1500)
+
+            file_version_thread.join()
+            mod_version_thread.join()
+
+            #if either the mod or file has no version then use the last update time instead for both
+            if self.mod_version.strip() == "" or self.file_version.strip() == "":
+                self.get_latest_file_date_from_api(mod_id)
+                self.mod_version = self.convert_time_to_version(self.mod_last_updated)
+                self.file_version = self.convert_time_to_version(self.file_last_updated)
+
+            #insert the version in the file name for checking if the current file version has already been downloaded
+            name, ext = os.path.splitext(filename)
+            filename = name + "-" + self.file_version + ext
+
+            #Get an available file name
             available_name = self.get_available_name(download_location, filename)
-            #self.log = open(rf"D:\Modding\MO2\plugins\MWS Handler\{available_name}log.txt", 'w', encoding='utf-8')
-            #sys.stdout = self.log
-            #sys.stderr = self.log
+
             download_path = os.path.join(download_location, available_name)
 
+            #Open MO2 if it isn't currently running
             open_mo2_thread = Thread(target=self.open_mo2_if_not_running, daemon=True)
             open_mo2_thread.start()
 
+            #If the file has already been downloaded
+            if available_name != filename:
+                cont = self.ask_to_continue(filename)
+                if not cont:
+                    if os.path.exists(download_path):
+                        os.remove(download_path)
+                    return
+                
             download_thread = Thread(target=self.download_file, args=(download_link, download_path, available_name), daemon=True)
             download_thread.start()
-            print("Download Started")
-            self.show_message('Download Started', 1500)
 
             cancel_thread = Thread(target=self.listen_for_cancel, daemon=True)
             cancel_thread.start()
@@ -83,20 +124,7 @@ class mws_handler():
             name_thread = Thread(target=self.get_mod_name_from_api, args=(mod_id,), daemon=True)
             name_thread.start()
 
-            file_version_thread = Thread(target=self.get_file_version_and_date_from_api, args=(file_id,), daemon=True)
-            file_version_thread.start()
-
-            mod_version_thread = Thread(target=self.get_mod_version_from_api, args=(mod_id,), daemon=True)
-            mod_version_thread.start()
-
-            file_version_thread.join()
-            mod_version_thread.join()
             name_thread.join()
-            
-            if self.mod_version.strip() == "" or self.file_version.strip() == "":
-                self.get_latest_file_date_from_api(mod_id)
-                self.mod_version = self.convert_time_to_version(self.mod_last_updated)
-                self.file_version = self.convert_time_to_version(self.file_last_updated)
 
             download_metadata = os.path.join(download_location, available_name + '.meta')
             download_thread.join()
@@ -111,14 +139,14 @@ class mws_handler():
                             f"gameName={game_id}\n"+
                             f"modID={mod_id}\n"+
                             f"fileID={file_id}\n"+
-                            f"url=https://modworkshop.net/mod/{mod_id}\n"+
-                            f"hasCustomUrl=true\n"+
+                            f"url=https://modworkshop.net/mod/{mod_id}\n"+                                  
+                            f"hasCustomUrl=true\n"+                                                         #Replaced "Open On Nexus" with MWS via MO2 plugin
                             f"name={os.path.splitext(filename)[0]}\n"+
-                            "description=\n"+
+                            "description=\n"+                                                               #Maybe in the future
                             f"modName={self.mod_name}\n"+
                             f"version={self.file_version}\n"+
                             f"newestVersion={self.mod_version}\n"+
-                            f"fileTime=@DateTime({r'\0\0\0\x10\0\x80\0\0\0\0\0\0\0\xff\xff\xff\xff\0'})\n"+
+                            f"fileTime=@DateTime({r'\0\0\0\x10\0\x80\0\0\0\0\0\0\0\xff\xff\xff\xff\0'})\n"+ #Couldn't find an example where this is used
                             "fileCategory=0\n"+
                             "category=0\n"+
                             "repository=ModWorkshop\n"+
@@ -341,9 +369,9 @@ class mws_handler():
             text=msg, 
             font=("Segoe UI", 12),
             fg="black",
-            bg="#f0f0f0",  # Light gray background (standard system look)
-            padx=10,       # Padding
-            pady=10,       # Padding
+            bg="#f0f0f0",
+            padx=10,
+            pady=10,      
             relief="solid",
             borderwidth=1
         )
@@ -362,6 +390,23 @@ class mws_handler():
 
         root.after(duration, root.destroy)
         root.mainloop()
+    
+    def ask_to_continue(self, filename):
+        result = False
+        def ask():
+            nonlocal result
+            result = messagebox.askyesno("Download again?",
+                                        f"A file with the same name \"{filename}\" has already "+
+                                        "been downloaded. Do you want to download it again? The "+
+                                        "new file will recieve a different name.")
+            root.destroy()
+        root = tk.Tk()
+        root.overrideredirect(True)
+        root.attributes('-topmost', True)
+        root.geometry(f'0x0+-10+-10')
+        root.after(50, ask)
+        root.mainloop()
+        return result
 
 if __name__ == "__main__":
     handler = mws_handler()
