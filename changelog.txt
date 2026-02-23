@@ -36,3 +36,4 @@ Change log:
     - Fix slow downloads when MO2 is closed
     - Change duplicate download logic to replicate MO2's. We now ask the user if they want to redownload the file and also insert the file version in the file name.
     - Replace the "Visit on Nexus" download context menu button with "Visit on ModWorkshop"
+    - Maybe fix bug where a download would be completed but MO2's UI would not reflect it.
