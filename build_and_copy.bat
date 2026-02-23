@@ -53,8 +53,8 @@ if "%1"=="all" (
     echo -----------------------------------------
     echo Zipping for distribution
 
-    rem %SEVEN_ZIP% a "MWS MO2 Link Handler.zip" "%DIST_DIR%" ".\basic_games" "README.txt"
-    %SEVEN_ZIP% a "MWS MO2 Link Handler.zip" "%DIST_DIR%" "README.txt"
+    rem %SEVEN_ZIP% a "MWS MO2 Link Handler.zip" "%DIST_DIR%" ".\basic_games" "changelog.txt"
+    %SEVEN_ZIP% a "MWS MO2 Link Handler.zip" "%DIST_DIR%" "changelog.txt"
 )
 
 echo Done
