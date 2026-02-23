@@ -5,6 +5,8 @@ import winreg
 from threading import Thread
 import json
 import socket
+import time
+
 import tkinter as tk
 
 from urllib.request import urlretrieve
@@ -145,6 +147,8 @@ class mws_handler():
                             break
                     except:
                         pass
+                else:
+                    time.sleep(0.5)
         except:
             pass
 
@@ -156,18 +160,19 @@ class mws_handler():
         def try_connect():
             nonlocal connecting
             try:
-                self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 base = winreg.HKEY_CURRENT_USER
                 key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
                 port = int(winreg.QueryValueEx(key, 'port')[0])
                 winreg.CloseKey(key)
                 if port != -1:
+                    self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.sock.connect(('127.0.0.1', port))
                     self.connected = True
                     print(f"conneted on port: {port}")
             except:
                 self.connected = False
-            connecting = False
+            finally:
+                connecting = False
 
         try_connect()
 
@@ -176,8 +181,8 @@ class mws_handler():
             if self.cancelled:
                 print("progress_hook, user cancelled download")
                 raise InterruptedError("User Cancelled Download")
-            try:
-                if self.connected:
+            if self.connected:
+                try:
                     current_downloaded = block_num * block_size
                     msg = {
                         "file": filename,
@@ -185,25 +190,24 @@ class mws_handler():
                         "max": total_size
                     }
                     self.sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
-                else:
-                    raise ConnectionError("Not connected")
-            except:
-                if self.connected:
+                except:
+                    print("closing socket")
+                    self.connected = False
                     try:
-                        print("closing socket")
                         self.sock.close()
                     except:
                         pass
-                    self.connected = False
-                if not self.cancelled and self.downloading:
-                    #print("progress_hook, retry connect")
-                    if not connecting:
-                        connecting = True
-                        Thread(target=try_connect, daemon=True).start()
+            elif not connecting and not self.cancelled and self.downloading:
+                connecting = True
+                print("Trying to connect to MO2 plugin")
+                Thread(target=try_connect, daemon=True).start()
 
         try:
             try:
+                #start = time.time()
                 urlretrieve(download_link, download_path, reporthook=progress_hook)
+                #end = time.time()
+                #print(f"Time taken {end-start} seconds")
             except InterruptedError as e:
                 print(f"Canceled: {e}")
                 self.e = e
