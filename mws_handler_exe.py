@@ -5,7 +5,6 @@ import winreg
 import threading
 import json
 import socket
-import subprocess
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QApplication, QLabel
@@ -14,6 +13,10 @@ from urllib.request import urlretrieve
 from urllib.request import urlopen
 from urllib.parse import unquote
 
+#Fix MO2 grabbing vcruntime dlls from temp _MEI folder
+if sys.platform == "win32":
+    import ctypes
+    ctypes.windll.kernel32.SetDllDirectoryA(None)
 
 #Compile command: pyinstaller mws_handler_exe.py --onefile -n MWS_Link_Handler --noconsole
 PROTOCOL = "mws-mo2"
@@ -311,32 +314,18 @@ class mws_handler():
                 return True
         return False
     
-    #Jump through hoops to launch MO2 without allowing it access to pyInstaller's temp _MEI folder
-    #If MO2 touches the _MEI folder then once the download finishes pyInstaller will try to delete the temp _MEI folder
-    #but, MO2 will be locking the MSVC dlls and it will give an error about not being able to delete the temp _MEI folder
     def open_mo2_if_not_running(self):
         if not self.is_mo2_running():
+            
             try:
                 base = winreg.HKEY_CURRENT_USER
                 key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
                 mo2_path = winreg.QueryValueEx(key, 'mo_path')[0]
                 winreg.CloseKey(key)
-                if os.path.exists(mo2_path):
-                    LAUNCH_PROTOCOL = "mws-mo2-force-launch"
                 
-                    proto_key = winreg.CreateKey(base, fr"Software\Classes\{LAUNCH_PROTOCOL.upper()}")
-                    winreg.SetValueEx(proto_key, None, 0, winreg.REG_SZ, f"URL:{LAUNCH_PROTOCOL.upper()} Protocol")
-                    winreg.SetValueEx(proto_key, "URL Protocol", 0, winreg.REG_SZ, "")
-                    
-                    cmd_key = winreg.CreateKey(proto_key, r"shell\open\command")
-                    
-                    winreg.SetValueEx(cmd_key, None, 0, winreg.REG_SZ, fr'"{mo2_path}"')
-                    
-                    winreg.CloseKey(cmd_key)
-                    winreg.CloseKey(proto_key)
-
-                    command = f'explorer "{LAUNCH_PROTOCOL}://none/"'
-                    subprocess.run(command, shell=True, check=False, close_fds=True, creationflags=subprocess.DETACHED_PROCESS)
+                if os.path.exists(mo2_path):
+                    os.startfile(mo2_path)
+                    return
             except:
                 pass
 
