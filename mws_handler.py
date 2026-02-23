@@ -5,17 +5,21 @@ import mobase
 import socket
 import json
 import threading
+import configparser
+import webbrowser
 
 try:
     from PyQt6.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle, 
                                  QStyledItemDelegate, QStyleOptionViewItem, QStyleOptionProgressBar, 
                                  QApplication, QPushButton, QMenu)
     from PyQt6.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent
+    from PyQt6.QtGui import QAction
 except:
     from PyQt5.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle, 
                                  QStyledItemDelegate, QStyleOptionViewItem, QStyleOptionProgressBar, 
                                  QApplication, QPushButton, QMenu)
     from PyQt5.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent
+    from PyQt6.QtGui import QAction
 
 SIZE_COLUMN = 2
 STATUS_COLUMN = 1
@@ -23,11 +27,13 @@ FILENAME_COLUMN = 0
 PROTOCOL = "mws-mo2"
 
 class ContextMenuHijacker(QObject):
-    def __init__(self, download_view, data_holder, cancel_callback):
+    def __init__(self, download_view, data_holder, cancel_callback, download_path):
         super().__init__()
         self.download_view: QTreeView = download_view
         self.data_holder: Data_Holder = data_holder
         self.cancel_callback = cancel_callback
+        self.download_path = download_path
+        self.action = None
 
     def eventFilter(self, obj, event: QEvent):
         if event.type() == QEvent.Type.Show and isinstance(obj, QMenu):
@@ -49,6 +55,23 @@ class ContextMenuHijacker(QObject):
                     menu.removeAction(action)
             action = menu.addAction("Cancel MWS Download")
             action.triggered.connect(lambda checked, f=file_name: self.cancel_callback(f))
+        else:
+            meta_file = os.path.join(self.download_path,file_name) +'.meta'
+            try:
+                ini = configparser.ConfigParser()
+                ini.read(meta_file, encoding="utf-8")
+                repo = ini.get("General", "repository")
+                if repo == "ModWorkshop":
+                    url = ini.get("General", "url")
+                    menu.removeAction(menu.actions()[1])
+                    self.action = QAction("Visit on ModWorkshop")
+                    self.action.triggered.connect(lambda checked, link=url: self.open_mws_link(link))
+                    menu.insertAction(menu.actions()[1], self.action)
+            except:
+                pass
+    
+    def open_mws_link(self, link):
+        webbrowser.open(link)            
 
 class ProgressListener(QObject):
     # filename, current_bytes, total_bytes
@@ -114,6 +137,8 @@ class ProgressListener(QObject):
                             pass
                 except:
                     connected = False
+                    if current_filename != None:
+                        self.progress_received.emit(current_filename, -1, -1)
 
     def cancel_download(self, file_name):
         if file_name in self.active_sockets:
@@ -208,7 +233,6 @@ class mws_protocol_register(mobase.IPlugin):
         self.data_holder:Data_Holder = Data_Holder()
         self.listener = ProgressListener()
         self.listener.progress_received.connect(self.on_external_progress)
-        self._organizer.modList().onModStateChanged(lambda x: self.on_external_progress("Animated Payday 3 Loading Screens.zip", 100, 7800000))
         return True
     
     def on_external_progress(self, file_name, progress, total):
@@ -255,7 +279,8 @@ class mws_protocol_register(mobase.IPlugin):
         self.menu_hijacker = ContextMenuHijacker(
             downloadView, 
             self.data_holder, 
-            self.listener.cancel_download
+            self.listener.cancel_download,
+            self._organizer.downloadsPath()
         )
         QApplication.instance().installEventFilter(self.menu_hijacker)
 
