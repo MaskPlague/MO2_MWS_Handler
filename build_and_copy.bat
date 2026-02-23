@@ -5,10 +5,10 @@ set EXE_NAME=MWS_Link_Handler
 set EXE_SCRIPT=mws_handler_exe.py
 set INIT_SCRIPT=__init__.py
 set MWS_SCRIPT=mws_handler.py
+set DIST_DIR=.\MWS Handler
 
 rem Replace these with your own directories
 set DEST_DIR=D:\Modding\MO2\plugins\MWS Handler
-set DIST_DIR=.\MWS Handler
 set SEVEN_ZIP="C:\Program Files\7-Zip\7z.exe"
 
 IF "%1"=="all" (
