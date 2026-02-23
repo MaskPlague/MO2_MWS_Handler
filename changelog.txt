@@ -1,6 +1,7 @@
 Installation:
-	- Copy `MWS Handler`, `basic_games` and `installer_non_zipped.py` to your MO2/Plugins/ folder.
+- Copy `MWS Handler`, `basic_games` and `installer_non_zipped.py` to your MO2/Plugins/ folder.
 
+- - -
 
 Change log:
 - 0.0.2:
