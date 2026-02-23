@@ -22,6 +22,12 @@ if sys.platform == "win32":
 #Compile command: pyinstaller mws_handler_exe.py --onefile -n MWS_Link_Handler --noconsole
 PROTOCOL = "mws-mo2"
 
+DEBUG = False
+
+def debug_print(string):
+    if DEBUG:
+        print(string)
+
 class mws_handler():
     def __init__(self):   
         self.mod_name = "Unknown"
@@ -196,7 +202,7 @@ class mws_handler():
                     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.sock.connect(('127.0.0.1', port))
                     self.connected = True
-                    print(f"conneted on port: {port}")
+                    debug_print(f"conneted on port: {port}")
             except:
                 self.connected = False
             finally:
@@ -207,7 +213,7 @@ class mws_handler():
         def progress_hook(block_num, block_size, total_size):
             nonlocal connecting
             if self.cancelled:
-                print("progress_hook, user cancelled download")
+                debug_print("progress_hook, user cancelled download")
                 raise InterruptedError("User Cancelled Download")
             if self.connected:
                 try:
@@ -219,7 +225,7 @@ class mws_handler():
                     }
                     self.sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
                 except:
-                    print("closing socket")
+                    debug_print("closing socket")
                     self.connected = False
                     try:
                         self.sock.close()
@@ -227,17 +233,19 @@ class mws_handler():
                         pass
             elif not connecting and not self.cancelled and self.downloading:
                 connecting = True
-                print("Trying to connect to MO2 plugin")
+                debug_print("Trying to connect to MO2 plugin")
                 Thread(target=try_connect, daemon=True).start()
 
         try:
             try:
-                #start = time.time()
+                if DEBUG:
+                    start = time.time()
                 urlretrieve(download_link, download_path, reporthook=progress_hook)
-                #end = time.time()
-                #print(f"Time taken {end-start} seconds")
+                if DEBUG:
+                    end = time.time()
+                    debug_print(f"Time taken {end-start} seconds")
             except InterruptedError as e:
-                print(f"Canceled: {e}")
+                debug_print(f"Canceled: {e}")
                 self.e = e
                 try:
                     if not self.connected:
@@ -252,27 +260,28 @@ class mws_handler():
                         except:
                             pass
             except Exception as e:
-                print(f"Exception: {e}")
+                debug_print(f"Exception: {e}")
                 self.e = e
                 if os.path.exists(download_path):
                     try:
                         os.remove(download_path)
                     except:
                         pass
-            print(f"send download complete message: {self.connected}")
+            debug_print(f"send download complete message: {self.connected}")
             if not self.connected:
                 try_connect()
             if self.connected:
                 try:
                     msg = {"file": filename, "cur": -1, "max": -1}
                     self.sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
+                    debug_print("Sent completion message")
                 except:
                     pass
         finally:
-            print("finishing up download")
+            debug_print("finishing up download")
             self.downloading = False
             try:
-                print("closing socket")
+                debug_print("closing socket")
                 self.sock.close()
             except:
                 pass
