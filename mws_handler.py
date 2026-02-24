@@ -94,7 +94,6 @@ class ProgressListener(QObject):
         self.thread.start()
         self.active_sockets:dict = {}
         self.data_holder = data_holder
-        QApplication.instance().aboutToQuit.connect(self.stop)
 
     def run_server(self):
         try:
@@ -246,6 +245,7 @@ class mws_protocol_register(mobase.IPlugin):
         self.data_holder:Data_Holder = Data_Holder()
         self.listener = ProgressListener(self.data_holder)
         self.listener.progress_received.connect(self.on_external_progress)
+        QApplication.instance().aboutToQuit.connect(self.listener.stop)
         return True
     
     def on_external_progress(self, file_name, progress, total):
