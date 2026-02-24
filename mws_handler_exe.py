@@ -1,11 +1,11 @@
 import sys
 import os
-import psutil
 import winreg
 from threading import Thread
 import json
 import socket
 import time
+import subprocess
 
 import tkinter as tk
 from tkinter import messagebox
@@ -21,7 +21,6 @@ if sys.platform == "win32":
 
 #Compile command: pyinstaller mws_handler_exe.py --onefile -n MWS_Link_Handler --noconsole
 PROTOCOL = "mws-mo2"
-
 DEBUG = False
 
 def debug_print(string):
@@ -130,7 +129,7 @@ class mws_handler():
             if self.cancelled:
                 self._show_message(f"Download for {filename} cancelled.\n{self.e}", 3000)
             elif self.e is not None:
-                self._show_message(f"Failed to download file from: {download_link}\nError: {self.e}", 5000)
+                self._show_message(f"Failed to download file \"{filename}\" from: {download_link}\nError: {self.e}", 5000)
             else:
                 self.save_download_metadata(download_metadata_path, game_id, mod_id, file_id, filename)
             open_mo2_thread.join()
@@ -198,7 +197,7 @@ class mws_handler():
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connected = False
         connecting = False
-
+        socket.setdefaulttimeout(15)
         def try_connect():
             nonlocal connecting
             try:
@@ -244,12 +243,18 @@ class mws_handler():
                 debug_print("Trying to connect to MO2 plugin")
                 Thread(target=try_connect, daemon=True).start()
 
-        def remove(download_path):
-            if os.path.exists(download_path):
-                try:
-                    os.remove(download_path)
-                except:
-                    pass
+        def remove(download_path, filename):
+            try:
+                if not self.connected:
+                    try_connect()
+                if self.connected:
+                    send_msg(filename, -1, -1)
+            finally:
+                if os.path.exists(download_path):
+                    try:
+                        os.remove(download_path)
+                    except:
+                        pass
         try:
             try:
                 if DEBUG:
@@ -261,17 +266,15 @@ class mws_handler():
             except InterruptedError as e:
                 debug_print(f"Canceled: {e}")
                 self.e = e
-                try:
-                    if not self.connected:
-                        try_connect()
-                    if self.connected:
-                        send_msg(filename, -1, -1)
-                finally:
-                    remove(download_path)
+                remove(download_path, filename)
+            except TimeoutError as e:
+                debug_print(f"Canceled: {e}")
+                self.e = "Download has timed out."
+                remove(download_path, filename)
             except Exception as e:
                 debug_print(f"Exception: {e}")
                 self.e = e
-                remove(download_path)
+                remove(download_path, filename)
 
             debug_print(f"send download complete message: {self.connected}")
             if not self.connected:
@@ -354,10 +357,8 @@ class mws_handler():
             return self._get_available_name(download_location, name, number+1)
         
     def is_mo2_running(self):
-        for process in psutil.process_iter(['name']):
-            if process.info['name'] == 'ModOrganizer.exe':
-                return True
-        return False
+        output = subprocess.check_output('tasklist /fi "imagename eq ModOrganizer.exe"', shell=True)
+        return b"ModOrganizer.exe" in output
     
     def open_mo2_if_not_running(self):
         if not self.is_mo2_running():

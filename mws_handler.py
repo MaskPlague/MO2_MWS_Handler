@@ -11,20 +11,26 @@ import webbrowser
 try:
     from PyQt6.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle, 
                                  QStyledItemDelegate, QStyleOptionViewItem, QStyleOptionProgressBar, 
-                                 QApplication, QPushButton, QMenu)
+                                 QApplication, QPushButton, QMenu, QTableWidgetItem)
     from PyQt6.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent
     from PyQt6.QtGui import QAction
 except:
     from PyQt5.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle, 
                                  QStyledItemDelegate, QStyleOptionViewItem, QStyleOptionProgressBar, 
-                                 QApplication, QPushButton, QMenu)
+                                 QApplication, QPushButton, QMenu, QTableWidgetItem)
     from PyQt5.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent
-    from PyQt6.QtGui import QAction
+    from PyQt5.QtGui import QAction
 
 SIZE_COLUMN = 2
 STATUS_COLUMN = 1
 FILENAME_COLUMN = 0
 PROTOCOL = "mws-mo2"
+
+class Data_Holder():
+    model:QAbstractItemModel = None
+    view:QTreeView = None
+    refresh:QPushButton.click = None
+    data = {}
 
 class ContextMenuHijacker(QObject):
     def __init__(self, download_view, data_holder, cancel_callback, download_path):
@@ -77,13 +83,14 @@ class ProgressListener(QObject):
     # filename, current_bytes, total_bytes
     progress_received = pyqtSignal(str, int, int)
 
-    def __init__(self):
+    def __init__(self, data_holder: Data_Holder):
         super().__init__()
         self.running = True
         self.server_socket = None
         self.thread = threading.Thread(target=self.run_server, daemon=True)
         self.thread.start()
         self.active_sockets:dict = {}
+        self.data_holder = data_holder
 
     def run_server(self):
         try:
@@ -149,7 +156,13 @@ class ProgressListener(QObject):
                 # Send the cancel command
                 cmd = json.dumps({"action": "cancel"}) + "\n"
                 conn.sendall(cmd.encode('utf-8'))
-
+                data = self.data_holder.data.get(file_name)
+                if data:
+                    self.data_holder.data.update(
+                        {file_name: {"progress": data["progress"], 
+                                     "total": data["total"], 
+                                     "cancelled": True}})
+                    self.data_holder.view.update()
             except Exception as e:
                 print(f"Failed to send cancel: {e}")
 
@@ -184,6 +197,10 @@ class HybridDownloadDelegate(QStyledItemDelegate):
             # --- DRAW CUSTOM PROGRESS BAR ---
             progress_value = data["progress"]
             max_value = data["total"]
+            if data["cancelled"]:
+                option.text = "Cancelling"
+                QApplication.style().drawControl(QStyle.ControlElement.CE_ItemViewItem, option, painter)
+                return
             if max_value <= 0:
                 return
             total_size = self.format_bytes(max_value)
@@ -196,8 +213,7 @@ class HybridDownloadDelegate(QStyledItemDelegate):
             progress_opt.text = f"{int((progress_value / max_value) * 100)}% of {total_size}"
             progress_opt.textVisible = True
             progress_opt.textAlignment = Qt.AlignmentFlag.AlignCenter
-            
-            
+
             QApplication.style().drawControl(QStyle.ControlElement.CE_ProgressBar, progress_opt, painter)
         else:
             # --- PASS TO ORIGINAL ---
@@ -205,13 +221,6 @@ class HybridDownloadDelegate(QStyledItemDelegate):
                 self.original_delegate.paint(painter, option, index)
             else:
                 super().paint(painter, option, index)
-
-class Data_Holder():
-    model:QAbstractItemModel = None
-    view:QTreeView = None
-    refresh:QPushButton.click = None
-    data = {}
-
 
 class mws_protocol_register(mobase.IPlugin):
     def name(self):
@@ -231,7 +240,7 @@ class mws_protocol_register(mobase.IPlugin):
         self.main_window = None
         self.new_delegate = None
         self.data_holder:Data_Holder = Data_Holder()
-        self.listener = ProgressListener()
+        self.listener = ProgressListener(self.data_holder)
         self.listener.progress_received.connect(self.on_external_progress)
         return True
     
@@ -263,7 +272,10 @@ class mws_protocol_register(mobase.IPlugin):
             index_name = matching_indexes[0]
             row = index_name.row()
             index_status = model.index(row, STATUS_COLUMN)
-            self.data_holder.data.update({file_name: {"progress": progress, "total": total}})
+            self.data_holder.data.update(
+                {file_name: {"progress": progress, 
+                             "total": total, 
+                             "cancelled": self.data_holder.data.get(file_name, {"cancelled": False})["cancelled"]}})
             self.data_holder.view.update(index_status)
         
         return
