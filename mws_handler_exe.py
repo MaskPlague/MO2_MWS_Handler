@@ -44,29 +44,22 @@ class mws_handler():
         #sys.argv should be [exe, download location, mws url protocol link]
         if len(sys.argv) > 2:
             download_location = sys.argv[1]
-            link = sys.argv[2]
-            split = link.split('/') #link should be mws-mo2://install/game_id/mod_id/file_id
-            file_id = split[-1]
-            mod_id = split[-2]
-            game_id = split[-3]
+            #sys.argv[2] is link and it should be mws-mo2://install/game_id/mod_id/file_id
+            game_id, mod_id, file_id = self.get_ids_from_link(sys.argv[2])
             download_link = f"https://api.modworkshop.net/files/{file_id}/download"
             error = None
             try:
-                #Set via MO2 plugin and retrieved here
-                base = winreg.HKEY_CURRENT_USER
-                key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
-                last_game = winreg.QueryValueEx(key, 'game')[0]
-                winreg.CloseKey(key)
+                last_game = self._get_from_registry('game')
             except Exception as e:
                 last_game = "MWS_None"
                 error = e
 
             #If the game instance does not match do not download
             if last_game != "MWS_None" and last_game != game_id:
-                self.show_message(f'Download is for "{game_id}" but, the last opened instance is for "{last_game}".\nDownload cancelled.', 5000)
+                self._show_message(f'Download is for "{game_id}" but, the last opened instance is for "{last_game}".\nDownload cancelled.', 5000)
                 return
             elif last_game == "MWS_None":
-                self.show_message('An error was encountered while getting the last opened MO2 instance game name.\n'+
+                self._show_message('An error was encountered while getting the last opened MO2 instance game name.\n'+
                                   'Ensure the MWS MO2 plugin is installed and then restart MO2.\n'+
                                  f'Error: {error}\n'+
                                   'Download Cancelled.', 5000)
@@ -78,34 +71,34 @@ class mws_handler():
                 filename = unquote(response.headers.get_filename())
                 response.close()
             except:
-                self.show_message(f'Cannot connect to https://api.modworkshop.net/.\nDownload cancelled.', 5000)
+                self._show_message(f'Cannot connect to https://api.modworkshop.net/.\nDownload cancelled.', 5000)
                 return
 
             #Get the latest version of the mod and file
-            file_version_thread = Thread(target=self.get_file_version_and_date_from_api, args=(file_id,), daemon=True)
+            file_version_thread = Thread(target=self._get_file_version_and_date_from_api, args=(file_id,), daemon=True)
             file_version_thread.start()
             
-            mod_version_thread = Thread(target=self.get_mod_version_from_api, args=(mod_id,), daemon=True)
+            mod_version_thread = Thread(target=self._get_mod_version_from_api, args=(mod_id,), daemon=True)
             mod_version_thread.start()
 
             debug_print("Download Started")
-            self.show_message('Download Started', 1500)
+            self._show_message('Download Started', 1500)
 
             file_version_thread.join()
             mod_version_thread.join()
 
             #if either the mod or file has no version then use the last update time instead for both
             if self.mod_version.strip() == "" or self.file_version.strip() == "":
-                self.get_latest_file_date_from_api(mod_id)
-                self.mod_version = self.convert_time_to_version(self.mod_last_updated)
-                self.file_version = self.convert_time_to_version(self.file_last_updated)
+                self._get_latest_file_date_from_api(mod_id)
+                self.mod_version = self._convert_time_to_version(self.mod_last_updated)
+                self.file_version = self._convert_time_to_version(self.file_last_updated)
 
             #insert the version in the file name for checking if the current file version has already been downloaded
             name, ext = os.path.splitext(filename)
             filename = name + "-" + self.file_version + ext
 
             #Get an available file name
-            available_name = self.get_available_name(download_location, filename)
+            available_name = self._get_available_name(download_location, filename)
 
             download_path = os.path.join(download_location, available_name)
 
@@ -127,42 +120,50 @@ class mws_handler():
             cancel_thread = Thread(target=self.listen_for_cancel, daemon=True)
             cancel_thread.start()
 
-            name_thread = Thread(target=self.get_mod_name_from_api, args=(mod_id,), daemon=True)
+            name_thread = Thread(target=self._get_mod_name_from_api, args=(mod_id,), daemon=True)
             name_thread.start()
 
             name_thread.join()
 
-            download_metadata = os.path.join(download_location, available_name + '.meta')
+            download_metadata_path = os.path.join(download_location, available_name + '.meta')
             download_thread.join()
             if self.cancelled:
-                self.show_message(f"Download for {filename} cancelled.\n{self.e}", 3000)
+                self._show_message(f"Download for {filename} cancelled.\n{self.e}", 3000)
             elif self.e is not None:
-                self.show_message(f"Failed to download file from: {download_link}\nError: {self.e}", 5000)
+                self._show_message(f"Failed to download file from: {download_link}\nError: {self.e}", 5000)
             else:
-                with open(download_metadata, 'w', encoding='utf-8') as f:
-                    f.write("[General]\n"+
-                            "removed=false\n"+
-                            f"gameName={game_id}\n"+
-                            f"modID={mod_id}\n"+
-                            f"fileID={file_id}\n"+
-                            f"url=https://modworkshop.net/mod/{mod_id}\n"+                                  
-                            f"hasCustomUrl=true\n"+                                                         #Replaced "Open On Nexus" with MWS via MO2 plugin
-                            f"name={os.path.splitext(filename)[0]}\n"+
-                            "description=\n"+                                                               #Maybe in the future
-                            f"modName={self.mod_name}\n"+
-                            f"version={self.file_version}\n"+
-                            f"newestVersion={self.mod_version}\n"+
-                            f"fileTime=@DateTime({r'\0\0\0\x10\0\x80\0\0\0\0\0\0\0\xff\xff\xff\xff\0'})\n"+ #Couldn't find an example where this is used
-                            "fileCategory=0\n"+
-                            "category=0\n"+
-                            "repository=ModWorkshop\n"+
-                            f"userData=@Variant({r'\0\0\0\b\0\0\0\0'})\n"+
-                            "installed=false\n"+
-                            "uninstalled=false\n"+
-                            "paused=false")
-                    f.close()
+                self.save_download_metadata(download_metadata_path, game_id, mod_id, file_id, filename)
             open_mo2_thread.join()
             sys.exit(0)
+
+    def get_ids_from_link(self, link):
+        split = link.split('/')
+        return split[-3], split[-2], split[-1] #game_id, mod_id, file_id
+
+
+    def save_download_metadata(self, path, game_id, mod_id, file_id, filename):
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write("[General]\n"+
+                    "removed=false\n"+
+                    f"gameName={game_id}\n"+
+                    f"modID={mod_id}\n"+
+                    f"fileID={file_id}\n"+
+                    f"url=https://modworkshop.net/mod/{mod_id}\n"+                                  
+                    f"hasCustomUrl=true\n"+                                                         #Replaced "Open On Nexus" with MWS via MO2 plugin
+                    f"name={os.path.splitext(filename)[0]}\n"+
+                    "description=\n"+                                                               #Maybe in the future
+                    f"modName={self.mod_name}\n"+
+                    f"version={self.file_version}\n"+
+                    f"newestVersion={self.mod_version}\n"+
+                    f"fileTime=@DateTime({r'\0\0\0\x10\0\x80\0\0\0\0\0\0\0\xff\xff\xff\xff\0'})\n"+ #Couldn't find an example where this is used
+                    "fileCategory=0\n"+
+                    "category=0\n"+
+                    "repository=ModWorkshop\n"+
+                    f"userData=@Variant({r'\0\0\0\b\0\0\0\0'})\n"+
+                    "installed=false\n"+
+                    "uninstalled=false\n"+
+                    "paused=false")
+            f.close()
 
     def listen_for_cancel(self):
         try:
@@ -186,6 +187,13 @@ class mws_handler():
         except:
             pass
 
+    def _get_from_registry(self, reg_key:str):
+        base = winreg.HKEY_CURRENT_USER
+        key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
+        val = winreg.QueryValueEx(key, reg_key)[0]
+        winreg.CloseKey(key)
+        return val
+
     def download_file(self, download_link, download_path, filename):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connected = False
@@ -194,10 +202,7 @@ class mws_handler():
         def try_connect():
             nonlocal connecting
             try:
-                base = winreg.HKEY_CURRENT_USER
-                key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
-                port = int(winreg.QueryValueEx(key, 'port')[0])
-                winreg.CloseKey(key)
+                port = int(self._get_from_registry('port'))
                 if port != -1:
                     self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.sock.connect(('127.0.0.1', port))
@@ -210,6 +215,14 @@ class mws_handler():
 
         try_connect()
 
+        def send_msg(filename, cur, max):
+            msg = {
+                "file": filename,
+                "cur": cur,
+                "max": max
+            }
+            self.sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
+
         def progress_hook(block_num, block_size, total_size):
             nonlocal connecting
             if self.cancelled:
@@ -218,12 +231,7 @@ class mws_handler():
             if self.connected:
                 try:
                     current_downloaded = block_num * block_size
-                    msg = {
-                        "file": filename,
-                        "cur": current_downloaded,
-                        "max": total_size
-                    }
-                    self.sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
+                    send_msg(filename, current_downloaded, total_size)
                 except:
                     debug_print("closing socket")
                     self.connected = False
@@ -236,6 +244,12 @@ class mws_handler():
                 debug_print("Trying to connect to MO2 plugin")
                 Thread(target=try_connect, daemon=True).start()
 
+        def remove(download_path):
+            if os.path.exists(download_path):
+                try:
+                    os.remove(download_path)
+                except:
+                    pass
         try:
             try:
                 if DEBUG:
@@ -251,29 +265,20 @@ class mws_handler():
                     if not self.connected:
                         try_connect()
                     if self.connected:
-                        msg = {"file": filename, "cur": -1, "max": -1}
-                        self.sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
+                        send_msg(filename, -1, -1)
                 finally:
-                    if os.path.exists(download_path):
-                        try:
-                            os.remove(download_path)
-                        except:
-                            pass
+                    remove(download_path)
             except Exception as e:
                 debug_print(f"Exception: {e}")
                 self.e = e
-                if os.path.exists(download_path):
-                    try:
-                        os.remove(download_path)
-                    except:
-                        pass
+                remove(download_path)
+
             debug_print(f"send download complete message: {self.connected}")
             if not self.connected:
                 try_connect()
             if self.connected:
                 try:
-                    msg = {"file": filename, "cur": -1, "max": -1}
-                    self.sock.sendall((json.dumps(msg) + "\n").encode('utf-8'))
+                    send_msg(filename, -1, -1)
                     debug_print("Sent completion message")
                 except:
                     pass
@@ -286,43 +291,43 @@ class mws_handler():
             except:
                 pass
 
-    def convert_time_to_version(self, time:str):
+    def _convert_time_to_version(self, time:str):
         return "d" + time.split("T")[0].replace('-', '.')
+    
+    def _get_json_from_link(self, link):
+        response = urlopen(link)
+        json_data:dict = json.load(response)
+        response.close()
+        return json_data
 
-    def get_mod_name_from_api(self, mod_id):
+    def _get_mod_name_from_api(self, mod_id):
         mod_name_link = f"https://api.modworkshop.net/mods/{mod_id}"
         try:
-            response = urlopen(mod_name_link)
-            json_data:dict = json.load(response)
-            response.close()
+            json_data = self._get_json_from_link(mod_name_link)
             self.mod_name = json_data.get("name", mod_id)
         except:
             self.mod_name = mod_id
     
-    def get_latest_file_date_from_api(self, mod_id):
+    def _get_latest_file_date_from_api(self, mod_id):
         mod_name_link = f"https://api.modworkshop.net/mods/{mod_id}/files/latest"
         try:
-            response = urlopen(mod_name_link)
-            json_data:dict = json.load(response)
-            response.close()
+            json_data = self._get_json_from_link(mod_name_link)
             self.mod_last_updated = json_data.get("updated_at", "2000-0-0T0")
         except:
             self.mod_last_updated = "2000-0-0T0"
             pass
 
-    def get_file_version_and_date_from_api(self, file_id):
+    def _get_file_version_and_date_from_api(self, file_id):
         file_version_link = f"https://api.modworkshop.net/files/{file_id}"
         try:
-            response = urlopen(file_version_link)
-            json_data:dict = json.load(response)
-            response.close()
+            json_data = self._get_json_from_link(file_version_link)
             self.file_version = json_data.get("version", "")
             self.file_last_updated = json_data.get("updated_at", "2000-0-0T0")
         except:
             self.file_version = ""
             self.file_last_updated = "2000-0-0T0"
 
-    def get_mod_version_from_api(self, mod_id):
+    def _get_mod_version_from_api(self, mod_id):
         mod_version_link = f"https://api.modworkshop.net/mods/{mod_id}/version"
         try:
             response = urlopen(mod_version_link)
@@ -331,21 +336,22 @@ class mws_handler():
         except:
             self.mod_version = ""
 
-    def get_available_name(self, download_location, name, number = 0):
+    def _get_available_name(self, download_location, name, number = 0):
         if number == 0:
             new_name = name
         else:
             split = os.path.splitext(name)
-            new_name = split[0] + '(' + str(number) + ')' + split[1]
+            new_name = str(number) + '_' + split[0] + split[1]
         
         download_path = os.path.join(download_location, new_name)
         
+        #Done this way to reserve the file name before download starts
         try:
             with open(download_path, 'x') as f:
                 pass
             return new_name
         except:
-            return self.get_available_name(download_location, name, number+1)
+            return self._get_available_name(download_location, name, number+1)
         
     def is_mo2_running(self):
         for process in psutil.process_iter(['name']):
@@ -355,12 +361,8 @@ class mws_handler():
     
     def open_mo2_if_not_running(self):
         if not self.is_mo2_running():
-            
             try:
-                base = winreg.HKEY_CURRENT_USER
-                key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
-                mo2_path = winreg.QueryValueEx(key, 'mo_path')[0]
-                winreg.CloseKey(key)
+                mo2_path = self._get_from_registry('mo_path')
                 
                 if os.path.exists(mo2_path):
                     os.startfile(mo2_path)
@@ -368,7 +370,7 @@ class mws_handler():
             except:
                 pass
 
-    def show_message(self, msg, duration=2000):
+    def _show_message(self, msg, duration=2000):
         root = tk.Tk()
         root.overrideredirect(True)
         root.attributes('-topmost', True)
