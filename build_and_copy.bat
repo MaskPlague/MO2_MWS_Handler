@@ -53,8 +53,8 @@ if "%1"=="all" (
     echo -----------------------------------------
     echo Zipping for distribution
 
-    %SEVEN_ZIP% a "MWS MO2 Link Handler.zip" "%DIST_DIR%" ".\basic_games" "installer_non_zipped.py" "changelog.txt"
-    rem %SEVEN_ZIP% a "MWS MO2 Link Handler.zip" "%DIST_DIR%" "changelog.txt"
+    %SEVEN_ZIP% a "Modworkshop - Mod Organizer 2 Plugins.zip" "%DIST_DIR%" ".\basic_games" "installer_non_zipped.py" "changelog.txt"
+    rem %SEVEN_ZIP% a "Modworkshop - Mod Organizer 2 Plugins.zip" "%DIST_DIR%" "changelog.txt"
 )
 
 echo Done
