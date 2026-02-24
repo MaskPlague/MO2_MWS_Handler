@@ -11,13 +11,13 @@ import webbrowser
 try:
     from PyQt6.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle, 
                                  QStyledItemDelegate, QStyleOptionViewItem, QStyleOptionProgressBar, 
-                                 QApplication, QPushButton, QMenu, QTableWidgetItem)
+                                 QApplication, QPushButton, QMenu)
     from PyQt6.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent
     from PyQt6.QtGui import QAction
 except ImportError:
     from PyQt5.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle, 
                                  QStyledItemDelegate, QStyleOptionViewItem, QStyleOptionProgressBar, 
-                                 QApplication, QPushButton, QMenu, QTableWidgetItem)
+                                 QApplication, QPushButton, QMenu)
     from PyQt5.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent
     from PyQt5.QtGui import QAction
 
