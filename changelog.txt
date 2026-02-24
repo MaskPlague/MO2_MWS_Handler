@@ -80,3 +80,4 @@ Change log:
     - [Link Handler] Change duplicate download logic to replicate MO2's. We now ask the user if they want to redownload the file and also insert the file version in the file name.
     - [MWS MO2 Plugin] Replace the "Visit on Nexus" download context menu button with "Visit on ModWorkshop"
     - [MWS MO2 Plugin] Maybe fix bug where a download would be completed but MO2's UI would not reflect it.
+    - [Link Handler & MWS MO2 Plugin] Various minor fixes and tweaks

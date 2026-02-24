@@ -14,7 +14,7 @@ try:
                                  QApplication, QPushButton, QMenu, QTableWidgetItem)
     from PyQt6.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent
     from PyQt6.QtGui import QAction
-except:
+except ImportError:
     from PyQt5.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle, 
                                  QStyledItemDelegate, QStyleOptionViewItem, QStyleOptionProgressBar, 
                                  QApplication, QPushButton, QMenu, QTableWidgetItem)
@@ -27,10 +27,13 @@ FILENAME_COLUMN = 0
 PROTOCOL = "mws-mo2"
 
 class Data_Holder():
-    model:QAbstractItemModel = None
-    view:QTreeView = None
-    refresh:QPushButton.click = None
-    data = {}
+    def __init__(self):
+        self.model:QAbstractItemModel = None
+        self.view:QTreeView = None
+        self.data:dict = {}
+
+    def refresh(self):
+        pass
 
 class ContextMenuHijacker(QObject):
     def __init__(self, download_view, data_holder, cancel_callback, download_path):
@@ -73,7 +76,7 @@ class ContextMenuHijacker(QObject):
                     self.action = QAction("Visit on ModWorkshop")
                     self.action.triggered.connect(lambda checked, link=url: self.open_mws_link(link))
                     menu.insertAction(menu.actions()[1], self.action)
-            except:
+            except Exception as e:
                 pass
     
     def open_mws_link(self, link):
@@ -91,6 +94,7 @@ class ProgressListener(QObject):
         self.thread.start()
         self.active_sockets:dict = {}
         self.data_holder = data_holder
+        QApplication.instance().aboutToQuit.connect(self.stop)
 
     def run_server(self):
         try:
@@ -131,7 +135,7 @@ class ProgressListener(QObject):
                             file_name = msg['file']
                             progress = msg['cur']
                             total = msg['max']
-                            if current_filename == None:
+                            if current_filename is None:
                                 current_filename = file_name
                                 self.active_sockets[file_name] = conn
                             self.progress_received.emit(file_name, progress, total)
@@ -142,9 +146,9 @@ class ProgressListener(QObject):
 
                         except json.JSONDecodeError:
                             pass
-                except:
+                except Exception as e:
                     connected = False
-                    if current_filename != None:
+                    if current_filename is not None:
                         self.progress_received.emit(current_filename, -1, -1)
 
     def cancel_download(self, file_name):
@@ -250,7 +254,7 @@ class mws_protocol_register(mobase.IPlugin):
             print(f"Download completed: {file_name}")
             if file_name in self.data_holder.data:
                 self.data_holder.data.pop(file_name)
-            if self.data_holder.view != None:
+            if self.data_holder.view is not None:
                 self.data_holder.view.update()
                 self.data_holder.refresh()
             return
@@ -325,28 +329,28 @@ class mws_protocol_register(mobase.IPlugin):
 
     def _register_protocol(self):
         download_dir = self._organizer.downloadsPath()
-        self_path = os.path.join(os.path.split(self._organizer.getPluginDataPath())[0], 'MWS Handler')
+        plugins_dir = os.path.dirname(self._organizer.getPluginDataPath())
+        self_path = os.path.join(plugins_dir, 'MWS Handler')
 
         # The path to the MWS link handler executable
         exe_path = os.path.normpath(os.path.join(self_path, 'MWS_Link_Handler.exe'))
         command = f'"{exe_path}" "{download_dir}" "%1"'
 
         # MO2 path passed for launching if the program is not open
-        mo2_path = os.path.normpath(os.path.join(os.path.split(os.path.split(self._organizer.getPluginDataPath())[0])[0], 'ModOrganizer.exe'))
+        mo2_path = os.path.normpath(os.path.join(os.path.dirname(plugins_dir), 'ModOrganizer.exe'))
         try:
             # Use CURRENT_USER instead of CLASSES_ROOT to avoid needing admin
             base = winreg.HKEY_CURRENT_USER
 
-            key = winreg.CreateKey(base, fr"Software\Classes\{PROTOCOL}")
-            winreg.SetValueEx(key, None, 0, winreg.REG_SZ, fr"URL:{PROTOCOL.upper()} Protocol")
-            winreg.SetValueEx(key, "URL Protocol", 0, winreg.REG_SZ, "")
-            winreg.SetValueEx(key, 'mo_path', 0, winreg.REG_SZ, fr"{mo2_path}")
-            winreg.SetValueEx(key, 'port', 0, winreg.REG_SZ, "-1")
+            with winreg.CreateKey(base, fr"Software\Classes\{PROTOCOL}") as key:
+                winreg.SetValueEx(key, None, 0, winreg.REG_SZ, fr"URL:{PROTOCOL.upper()} Protocol")
+                winreg.SetValueEx(key, "URL Protocol", 0, winreg.REG_SZ, "")
+                winreg.SetValueEx(key, 'mo_path', 0, winreg.REG_SZ, fr"{mo2_path}")
+                winreg.SetValueEx(key, 'port', 0, winreg.REG_SZ, "-1")
 
-            # Set the command for shell\open\command
-            subkey = winreg.CreateKey(key, r"shell\open\command")
-            winreg.SetValueEx(subkey, None, 0, winreg.REG_SZ, command)
-            winreg.CloseKey(key)
+                # Set the command for shell\open\command
+                with winreg.CreateKey(key, r"shell\open\command") as subkey:
+                    winreg.SetValueEx(subkey, None, 0, winreg.REG_SZ, command)
 
             print(f"Registered protocol '{PROTOCOL}' with handler: {command}")
             self._organizer.setPluginSetting(self.name(), f"{PROTOCOL.upper()} Protocol Registered", True)
@@ -363,4 +367,5 @@ class mws_protocol_register(mobase.IPlugin):
     
     def description(self):
         return f"Registers the {PROTOCOL.upper()} protocol to handle downloads."
+
     

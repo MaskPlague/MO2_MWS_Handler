@@ -188,9 +188,8 @@ class mws_handler():
 
     def _get_from_registry(self, reg_key:str):
         base = winreg.HKEY_CURRENT_USER
-        key = winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}")
-        val = winreg.QueryValueEx(key, reg_key)[0]
-        winreg.CloseKey(key)
+        with winreg.OpenKey(base, fr"Software\Classes\{PROTOCOL}") as key:
+            val = winreg.QueryValueEx(key, reg_key)[0]
         return val
 
     def download_file(self, download_link, download_path, filename):
