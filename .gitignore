@@ -181,6 +181,6 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 /MWS Handler
-MWS MO2 Link Handler.zip
 /basic_games
 installer_non_zipped.py
+*.zip
