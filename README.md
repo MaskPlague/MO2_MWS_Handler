@@ -10,6 +10,9 @@
 4. Extract the contents of the archive to the `plugins` folder so that you have `plugins/basic_games/`, `plugins/MWS Handler/`, and `plugins/installer_non_zipped.py`.
 6. Restart Mod Organizer 2 if it is running.
 
+## How to build yourself:
+Install Python and PyInstaller. Replace the paths/vars in the batch file with your own. Run the Build_and_copy.py file and input "y" to build the exe and copy all files to their destinations.
+
 ## Credits
 
 * **MaskPlague**
