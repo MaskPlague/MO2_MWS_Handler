@@ -4,6 +4,34 @@ Installation:
 - - -
 
 Change log:
+- 0.2.6:
+    - [MWS MO2 Plugin] Added ability to check MWS mods for updates
+    - [Installer - Non Zipped] Set repository and installationFile 4 seconds after installation
+
+- 0.2.5:
+    - [Basic Games] Update Road to Vostok Exe Name.
+
+- 0.2.2 - 0.2.4:
+    - [Basic Games] Cassette Beast Saves Fixes.
+
+- 0.2.1:
+    - [Basic Games] Cassette Beast Saves Fix.
+    - [Basic Games] Some optimizations for Titanfall 2
+
+- 0.2.0:
+    - [Basic Games] Removed unused imports
+    - [Basic Games] Removed unused variables
+    - [Basic Games] Removed qt5 support to avoid bare excepts
+    - [Basic Games] Fixed white-space and end-of-file
+    - [Basic Games] Sorted imports
+    - [Basic Games] Added saves folder and mod config file to cassette beast instances
+    - [Basic Games] Added openfilelog parameter to payday 3 due to issues with AllowModsMod
+
+
+- 0.1.9:
+    - [Basic Games] exe File name for Payday 3 has changed
+    - [Unreal Tabs] dll based ue4ss mods now show up in the ue4ss tab and can be managed
+
 - 0.1.8:
     - [Link Handler] Convert to tkinter from PyQt6. Reduces exe size from 36.3MB to 11.9MB
     - [Link Handler] Fix slow downloads when MO2 is closed
@@ -47,7 +75,7 @@ Change log:
 
 - 0.1.0:
     - [Link Handler & MWS MO2 Plugin] Added download progress to MO2 downloads tab
-    - [Installer - None Zipped] Processing meta for non zipped files
+    - [Installer - Non Zipped] Processing meta for non zipped files
 
 - 0.0.7:
     - [Basic Games] Added dll and bk2 file handling to Payday 3, Crime Boss and Silent Hill 2
