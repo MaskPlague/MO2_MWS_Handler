@@ -1,7 +1,7 @@
 #Written by MaskPlauge
 import winreg
 import os
-import mobase
+import mobase # type: ignore
 import socket
 import json
 import threading
@@ -16,11 +16,11 @@ try:
     from PyQt6.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent, QThread
     from PyQt6.QtGui import QAction
 except ImportError:
-    from PyQt5.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle, 
+    from PyQt5.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle,  # type: ignore
                                  QStyledItemDelegate, QStyleOptionViewItem, QStyleOptionProgressBar, 
                                  QApplication, QPushButton, QMenu)
-    from PyQt5.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent, QThread
-    from PyQt5.QtGui import QAction
+    from PyQt5.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent, QThread # type: ignore
+    from PyQt5.QtGui import QAction # type: ignore
 
 SIZE_COLUMN = 2
 STATUS_COLUMN = 1
