@@ -36,8 +36,6 @@ class Data_Holder():
     def refresh(self):
         pass
 
-#TODO: Replace "Check for Updates" in listOptions drop down, reference IMM
-
 class ContextMenuHijacker(QObject):
     def __init__(self, download_view, modList_view, data_holder, cancel_callback, modList, download_path):
         super().__init__()
@@ -45,20 +43,39 @@ class ContextMenuHijacker(QObject):
         self.modList_view: QTreeView = modList_view
         self.data_holder: Data_Holder = data_holder
         self.cancel_callback = cancel_callback
-        self.download_path = download_path
         self.modList: mobase.IModList = modList
+        self.download_path = download_path
+        self.init_vars()
+
+    def init_vars(self):
         self.visit_mws_action = None
 
         self.check_for_update_action = None
-        self.workers: dict[str, CheckForUpdateWorker] = {}
-        self.threads: dict[str, QThread] = {}
+        self.workers = {}
+        self.threads = {}
 
-    def eventFilter(self, obj, event: QEvent):
+        self.menu_obtained = False
+        self.listOptions_menu: QMenu = None
+        self.next = False
+        self.menu_check_all_for_update_action = QAction("Check MWS for updates")
+        self.menu_check_all_for_update_action.triggered.connect(self.check_all_for_update)
+
+    def eventFilter(self, obj: QObject, event: QEvent):
         if event.type() == QEvent.Type.Show and isinstance(obj, QMenu):
-            if obj.parent() == self.download_view:
+            if obj.parent() == self.download_view:      # if context menu is for a download
                 self.change_context_menu_download(obj)
-            elif obj.parent() == self.modList_view:
+            elif obj.parent() == self.modList_view:     # if contet menu if for a mod in the mod list
                 self.change_context_menu_mod_list(obj)
+
+        if not self.menu_obtained:  # if we haven't grabbed the listOptions menu
+            if event.type() == QEvent.Type.MouseButtonPress and obj.objectName() == "listOptionsBtn":
+                self.next = True    # next menu event will be for the listOptions menu
+            elif self.next and isinstance(obj, QMenu):  # get the list options menu
+                self.next = False
+                self.menu_obtained = True
+                self.listOptions_menu = obj
+        elif event.type() == QEvent.Type.Show and obj == self.listOptions_menu: #on list options menu display add the MWS check for update action
+            self.listOptions_menu.insertAction(self.listOptions_menu.actions()[9], self.menu_check_all_for_update_action)
         
         return False
 
@@ -74,6 +91,7 @@ class ContextMenuHijacker(QObject):
                 if i not in (3,4,5):
                     menu.removeAction(action)
             action = menu.addAction("Cancel MWS Download")
+            menu.addAction()
             action.triggered.connect(lambda checked, f=file_name: self.cancel_callback(f))
         else:
             meta_file = os.path.join(self.download_path,file_name) +'.meta'
@@ -109,7 +127,8 @@ class ContextMenuHijacker(QObject):
         modId = mod_handle.url().split('/')[-1]
         if modId in self.workers:
             return
-        worker = CheckForUpdateWorker(modId, mod_handle.name())
+        old_version = mod_handle.newestVersion()
+        worker = CheckForUpdateWorker(modId, mod_handle.name(), old_version.scheme())
         thread = QThread()
         worker.moveToThread(thread)
         thread.started.connect(worker.start)
@@ -118,11 +137,19 @@ class ContextMenuHijacker(QObject):
         self.workers[modId] = worker
         self.threads[modId] = thread
         thread.start()
+
+    def check_all_for_update(self):
+        for mod_name in self.modList.allMods():
+            mod_handle = self.modList.getMod(mod_name)
+            if mod_handle is not None and mod_handle.repository() == "ModWorkshop":
+                self.check_for_update(mod_handle)
     
     def worker_finished(self, modId, version, mod_name):
-        self.workers.pop(modId)
-        thread = self.threads.pop(modId)
-        thread.deleteLater()
+        if mod_name in self.workers:
+            self.workers.pop(modId)
+        if mod_name in self.threads:
+            thread = self.threads.pop(modId)
+            thread.deleteLater()
         mod_handle = self.modList.getMod(mod_name)
         if mod_handle is None:
             return
@@ -134,14 +161,15 @@ class ContextMenuHijacker(QObject):
 
 class CheckForUpdateWorker(QObject):
     finished_signal = pyqtSignal(str, str, str)
-    def __init__(self, modId, name):
+    def __init__(self, modId, name, version_scheme):
         self.modId = modId
         self.name = name
+        self.version_scheme = version_scheme
         super().__init__()
 
-    def _get_json_from_link(self, link):
+    def _get_json_from_link(self, link) -> dict:
         response = urlopen(link)
-        json_data:dict = json.load(response)
+        json_data: dict = json.load(response)
         response.close()
         return json_data
     
@@ -149,14 +177,15 @@ class CheckForUpdateWorker(QObject):
         return "d" + time.split("T")[0].replace('-', '.')
 
     def start(self):
-        mod_version_link = f"https://api.modworkshop.net/mods/{self.modId}/version"
-        try:
-            response = urlopen(mod_version_link)
-            mod_version = response.read().decode('utf-8')
-            response.close()
-        except:
-            mod_version = ""
-        if mod_version.strip() == "":
+        if not self.version_scheme == mobase.VersionScheme.DATE:
+            mod_version_link = f"https://api.modworkshop.net/mods/{self.modId}/version"
+            try:
+                response = urlopen(mod_version_link)
+                mod_version = response.read().decode('utf-8')
+                response.close()
+            except:
+                mod_version = "0.0.0.0"
+        else:
             mod_name_link = f"https://api.modworkshop.net/mods/{self.modId}/files/latest"
             try:
                 json_data = self._get_json_from_link(mod_name_link)
