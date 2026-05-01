@@ -4,7 +4,7 @@
 
 ## Installation
 
-1. Download the archive from [Modworkshop - Mod Organizer 2 Plugins](https://modworkshop.net/mod/54424).
+1. Download the archive from [Basic Game Plugins](https://github.com/ModWorkshop/modorganizer-basic_games/tree/master) and [Non Zipped Installer](https://github.com/ModWorkshop/modorganizer-installer_non_zipped)
 2. Navigate to your Mod Organizer 2 installation directory.
 3. Open the `plugins` folder.
 4. Extract the contents of the archive to the `plugins` folder so that you have `plugins/basic_games/`, `plugins/MWS Handler/`, and `plugins/installer_non_zipped.py`.
