@@ -69,7 +69,7 @@ class ContextMenuHijacker(QObject):
         if event.type() == QEvent.Type.Show and isinstance(obj, QMenu):
             if obj.parent() == self.download_view:      # if context menu is for a download
                 self.change_context_menu_download(obj)
-            elif obj.parent() == self.modList_view:     # if contet menu if for a mod in the mod list
+            elif obj.parent() == self.modList_view and len(obj.actions()) >= 7:     # if context menu for a mod in the mod list
                 self.change_context_menu_mod_list(obj)
 
         if not self.menu_obtained:  # if we haven't grabbed the listOptions menu
@@ -449,7 +449,7 @@ class mws_protocol_register(mobase.IPlugin):
             self.data_holder.model = downloadView.model()
 
     def _mod_installed(self, mod:mobase.IModInterface):
-        if mod.repository() == "ModWorkshop":
+        if mod.repository() == "ModWorkshop" and mod.nexusId() != 0:
             mod.setUrl(f"https://modworkshop.net/mod/{mod.nexusId()}")
             mod.setNexusID(0)
 
