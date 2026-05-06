@@ -40,30 +40,47 @@ class Data_Holder():
         pass
 
 class ContextMenuHijacker(QObject):
-    def __init__(self, download_view, modList_view, data_holder, cancel_callback, modList, download_path):
+    def __init__(self, download_view, modList_view, data_holder, cancel_callback, organizer: mobase.IOrganizer, init_categories):
         super().__init__()
         self.download_view: QTreeView = download_view
         self.modList_view: QTreeView = modList_view
         self.data_holder: Data_Holder = data_holder
         self.cancel_callback = cancel_callback
-        self.modList: mobase.IModList = modList
-        self.download_path = download_path
+        self.modList: mobase.IModList = organizer.modList()
+        self.download_path = organizer.downloadsPath()
+        self.organizer_refresh = organizer.refresh
+        self.init_categories = init_categories
         self.init_vars()
+
+    def _refresh(self):
+        self.organizer_refresh()
+
+    def _init_categories(self):
+        return self.init_categories(button=True)
 
     def init_vars(self):
         self.visit_mws_action = None
 
         self.check_for_update_action = None
-        self.workers = {}
-        self.threads = {}
+        self.update_missing_category_action = None
+
+        # dicts to hold pointers to worker objects and threads to keep them alive until finished
+        self.update_check_workers = {}
+        self.update_check_threads = {}
+
+        self.category_workers = {}
+        self.category_threads = {}
+
         #List of mod ids that have recently been checked for an update within API_WAIT_TIME_MSEC to prevent API spam
         self.recently_checked_for_update = []
 
         self.menu_obtained = False
         self.listOptions_menu: QMenu = None
         self.next = False
-        self.menu_check_all_for_update_action = QAction("Check MWS for updates")
+        self.menu_check_all_for_update_action = QAction("Check for updates (MWS)")
         self.menu_check_all_for_update_action.triggered.connect(self.check_all_for_update)
+        self.menu_update_mod_categories_action = QAction("Get Missing Categories (MWS)")
+        self.menu_update_mod_categories_action.triggered.connect(self.update_all_mod_categories)
 
     def eventFilter(self, obj: QObject, event: QEvent):
         if event.type() == QEvent.Type.Show and isinstance(obj, QMenu):
@@ -81,6 +98,7 @@ class ContextMenuHijacker(QObject):
                 self.listOptions_menu = obj
         elif event.type() == QEvent.Type.Show and obj == self.listOptions_menu: #on list options menu display add the MWS check for update action
             self.listOptions_menu.insertAction(self.listOptions_menu.actions()[9], self.menu_check_all_for_update_action)
+            self.listOptions_menu.addAction(self.menu_update_mod_categories_action)
         
         return False
 
@@ -95,8 +113,7 @@ class ContextMenuHijacker(QObject):
             for i, action in enumerate(menu.actions()):
                 if i not in (3,4,5):
                     menu.removeAction(action)
-            action = menu.addAction("Cancel MWS Download")
-            menu.addAction()
+            action = menu.addAction("Cancel Download (MWS)")
             action.triggered.connect(lambda checked, f=file_name: self.cancel_callback(f))
         else:
             meta_file = os.path.join(self.download_path,file_name) +'.meta'
@@ -123,14 +140,26 @@ class ContextMenuHijacker(QObject):
         if mod_handle is None:
             return
         if mod_handle.repository() == "ModWorkshop":
-            self.check_for_update_action = QAction("Check for Update")
+            self.check_for_update_action = QAction("Check for Update (MWS)")
             self.check_for_update_action.triggered.connect(lambda checked, mh=mod_handle: self.check_for_update(mh))
             menu.insertAction(menu.actions()[5], self.check_for_update_action)
-            mod_handle.url()
+            if not mod_handle.categories():
+                self.update_missing_category_action = QAction("Get Missing Category (MWS)")
+                self.update_missing_category_action.triggered.connect(lambda checked, mh=mod_handle: self.update_mod_category(mod_handle))
+                menu.insertAction(menu.actions()[6], self.update_missing_category_action)
+
+
+    def remove_from_recent_update_list(self, modId):
+        if modId in self.recently_checked_for_update:
+            self.recently_checked_for_update.remove(modId)
     
     def check_for_update(self, mod_handle: mobase.IModInterface):
+        if mod_handle.url() == "":
+            print(f"[{mod_handle.name()}] has no custom url to get the mod id from. Skipping.")
+            return
         modId = mod_handle.url().split('/')[-1]
-        if modId in self.workers:
+        if modId in self.update_check_workers:
+            print(f"[{mod_handle.name()}] is already being checked for an update. Skipping.")
             return
         if modId in self.recently_checked_for_update:
             print(f"[{mod_handle.name()}] was recently checked for an update within the last {API_WAIT_TIME_MSEC/1000} seconds. Skipping to prevent API spam.")
@@ -143,9 +172,10 @@ class ContextMenuHijacker(QObject):
         worker.moveToThread(thread)
         thread.started.connect(worker.start)
         worker.finished_signal.connect(thread.quit)
-        worker.finished_signal.connect(self.worker_finished)
-        self.workers[modId] = worker
-        self.threads[modId] = thread
+        worker.finished_signal.connect(self.update_worker_finished)
+        worker.finished_signal.connect(worker.deleteLater)
+        self.update_check_workers[modId] = worker
+        self.update_check_threads[modId] = thread
         thread.start()
 
     def check_all_for_update(self):
@@ -153,18 +183,64 @@ class ContextMenuHijacker(QObject):
             mod_handle = self.modList.getMod(mod_name)
             if mod_handle is not None and mod_handle.repository() == "ModWorkshop":
                 self.check_for_update(mod_handle)
-    
-    def worker_finished(self, modId, version, mod_name):
-        if mod_name in self.workers:
-            self.workers.pop(modId)
-        if mod_name in self.threads:
-            thread = self.threads.pop(modId)
-            thread.deleteLater()
+
+    def update_worker_finished(self, modId, version, mod_name):
+        if modId in self.update_check_workers:
+            self.update_check_workers.pop(modId)
+        if modId in self.update_check_threads:
+            thread = self.update_check_threads.pop(modId)
+            thread.wait()
         mod_handle = self.modList.getMod(mod_name)
         if mod_handle is None:
             return
         mo_version = mobase.VersionInfo(version)
         mod_handle.setNewestVersion(mo_version)
+
+    def update_mod_category(self, mod_handle: mobase.IModInterface):
+        if mod_handle.url() == "":
+            print(f"[{mod_handle.name()}] has no custom url to get the mod id from. Skipping.")
+            return
+        modId = mod_handle.url().split('/')[-1]
+        if modId in self.category_workers:
+            print(f"[{mod_handle.name()}] is already having its category added. Skipping.")
+            return
+        if mod_handle.categories():
+            if mod_handle.primaryCategory() != 1 or len(mod_handle.categories()) > 1:
+                print(f"[{mod_handle.name()}] already has category data (id not -1 or 1). Skipping.")
+                return
+        worker = UpdateCategoryWorker(modId, mod_handle.name())
+        thread = QThread()
+        worker.moveToThread(thread)
+        thread.started.connect(worker.start)
+        worker.finished_signal.connect(thread.quit)
+        worker.finished_signal.connect(self.category_worker_finished)
+        worker.finished_signal.connect(worker.deleteLater)
+        self.category_workers[modId] = worker
+        self.category_threads[modId] = thread
+        thread.start()
+
+    def category_worker_finished(self, modId, category_id, mod_name):
+        if modId in self.category_workers:
+            self.category_workers.pop(modId)
+        if modId in self.category_threads:
+            thread = self.category_threads.pop(modId)
+            thread.wait()
+        mod_handle = self.modList.getMod(mod_name)
+        if mod_handle is None:
+            return
+        meta = QSettings(os.path.join(mod_handle.absolutePath(), 'meta.ini'), QSettings.Format.IniFormat, None)
+        meta.setValue("category", category_id+",")
+        if not self.category_workers:
+            self._refresh()
+
+    def update_all_mod_categories(self):
+        restart = self._init_categories()
+        if restart:
+            return
+        for mod_name in self.modList.allMods():
+            mod_handle = self.modList.getMod(mod_name)
+            if mod_handle is not None and mod_handle.repository() == "ModWorkshop":
+                self.update_mod_category(mod_handle)
 
     def open_mws_link(self, link):
         webbrowser.open(link)            
@@ -204,6 +280,28 @@ class CheckForUpdateWorker(QObject):
                 mod_time = "2000-0-0T0"
             mod_version = self._convert_time_to_version(mod_time)
         self.finished_signal.emit(self.modId, mod_version, self.name)
+
+class UpdateCategoryWorker(QObject):
+    finished_signal = pyqtSignal(str, str, str)
+    def __init__(self, modId, name):
+        self.modId = modId
+        self.name = name
+        super().__init__()
+
+    def _get_json_from_link(self, link) -> dict:
+        response = urlopen(link)
+        json_data: dict = json.load(response)
+        response.close()
+        return json_data
+    
+    def start(self):
+        mod_link = f"https://api.modworkshop.net/mods/{self.modId}/"
+        try:
+            json_data = self._get_json_from_link(mod_link)
+            category_id = str(json_data.get("category_id", "0"))
+        except:
+            category_id = "0"
+        self.finished_signal.emit(self.modId, category_id, self.name)
 
 class ProgressListener(QObject):
     # filename, current_bytes, total_bytes
@@ -362,7 +460,7 @@ class mws_protocol_register(mobase.IPlugin):
         self._organizer = organizer
         self._register_protocol()
         self._organizer.modList().onModInstalled(self._mod_installed)
-        self._organizer.onUserInterfaceInitialized(self._get_downloads)
+        self._organizer.onUserInterfaceInitialized(self._onUserInterfaceInitialized)
         self.main_window = None
         self.new_delegate = None
         self.data_holder:Data_Holder = Data_Holder()
@@ -406,8 +504,61 @@ class mws_protocol_register(mobase.IPlugin):
             self.data_holder.view.update(index_status)
         
         return
+    
+    def categoryFileInfo(self) -> QFileInfo:
+        return QFileInfo(self._organizer.basePath() + "/" + "categories.dat")
+    
+    def _get_json_from_link(self, link):
+        response = urlopen(link)
+        json_data:dict = json.load(response)
+        response.close()
+        return json_data
+    
+    def get_categories(self, game_short_name, game_name):
+        categories_link = f"https://api.modworkshop.net/games/{game_short_name}/categories"
+        fake_categories_data = [f"1|{game_name}|0\n"]
+        categories_data = [f"1|{game_name}|0\n"]
+        try:
+            data = self._get_json_from_link(categories_link)
+            
+            for category in data["data"]:
+                fake_categories_data.append(f"{category["id"]}|{category["name"]}|{category["id"]}\n")
+                categories_data.append(f"{category["id"]}|{category["name"]}|{category["parent_id"] if category["parent_id"] != None else "0"}\n")
+            categories_data.sort()
+            fake_categories_data.sort()
+            categories_string = ''.join(categories_data)
+            fake_nexus_categories_string = ''.join(fake_categories_data)
+            return categories_string, fake_nexus_categories_string
+        except:
+            return categories_string, fake_nexus_categories_string
 
-    def _get_downloads(self, main_window: QMainWindow):
+    def init_categories(self, button=False):
+        game_plugin = self._organizer.managedGame()
+        if hasattr(game_plugin, "CategorySource") and game_plugin.CategorySource.lower() == "modworkshop":
+            print(f"The instance's game plugin's defined CategorySource is {game_plugin.CategorySource}")
+            if self.categoryFileInfo().exists() and self.categoryFileInfo().size() != 0:
+                print(f"Categories.dat already contains data. Skipping retrieval from MWS.")
+                return False
+            try:
+                cat_data, nexus_cat_map = self.get_categories(game_plugin.gameShortName(), game_plugin.gameName())
+                with open(os.path.join(self._organizer.basePath(), "categories.dat"), "w", encoding="utf-8") as f:
+                    f.write(cat_data)
+                with open(os.path.join(self._organizer.basePath(), "nexuscatmap.dat"), "w", encoding="utf-8") as f:
+                    f.write(nexus_cat_map)
+                if button:
+                    QMessageBox.information(None, "Categories Updated from MWS", "Category data has been updated from MWS. Please restart MO2 to apply. "+
+                                                                                "Click the button again after restarting to get the missing categories for mods.")
+                else:
+                    QMessageBox.information(None, "Categories Updated from MWS", "Category data has been updated from MWS, please restart MO2 to apply.")
+                return True
+            except Exception as e:
+                print(f"An error occurred while getting categories for {game_plugin.gameShortName()} ({game_plugin.gameName()}) from ModWorkshop API:")
+                print(e)
+        return False
+        
+
+    def _onUserInterfaceInitialized(self, main_window: QMainWindow):
+        self.init_categories()
         if self.main_window is None:
             self.main_window = main_window
         modList = main_window.findChild(QTreeView, "modList")
@@ -422,8 +573,8 @@ class mws_protocol_register(mobase.IPlugin):
             modList,
             self.data_holder, 
             self.listener.cancel_download,
-            self._organizer.modList(),
-            self._organizer.downloadsPath()
+            self._organizer,
+            self.init_categories
         )
         QApplication.instance().installEventFilter(self.menu_hijacker)
 
@@ -493,5 +644,3 @@ class mws_protocol_register(mobase.IPlugin):
     
     def description(self):
         return f"Registers the {PROTOCOL.upper()} protocol to handle downloads."
-
-    

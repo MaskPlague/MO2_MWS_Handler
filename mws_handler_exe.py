@@ -38,6 +38,7 @@ class mws_handler():
         self.sock = None
         self.downloading = True
         self.e = None
+        self.category_id = 0
 
     def main(self):
         #sys.argv should be [exe, download location, mws url protocol link]
@@ -155,8 +156,8 @@ class mws_handler():
                     f"version={self.file_version}\n"+
                     f"newestVersion={self.mod_version}\n"+
                     f"fileTime=@DateTime({r'\0\0\0\x10\0\x80\0\0\0\0\0\0\0\xff\xff\xff\xff\0'})\n"+ #Couldn't find an example where this is used
-                    "fileCategory=0\n"+
-                    "category=0\n"+
+                    "fileCategory=1\n"+                                                             #Not sure about 1, but couldn't find an example of it being something else
+                    f"category={self.category_id}\n"+
                     "repository=ModWorkshop\n"+
                     f"userData=@Variant({r'\0\0\0\b\0\0\0\0'})\n"+
                     "installed=false\n"+
@@ -307,6 +308,7 @@ class mws_handler():
         try:
             json_data = self._get_json_from_link(mod_name_link)
             self.mod_name = json_data.get("name", mod_id)
+            self.category_id = json_data.get("category_id", self.category_id)
         except:
             self.mod_name = mod_id
     
