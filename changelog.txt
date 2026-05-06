@@ -4,9 +4,42 @@ Installation:
 - - -
 
 Change log:
+- 0.4.0:
+    - [Installer - Non Zipped, MWS MO2 Plugin, Link Handler] 
+        Category Support:
+        - On starting MO2, if no category data is detected and the active game plugin has the attribute "CategorySource = ModWorkshop", category data will be retrieved from MWS for the active game.
+        - New downloads from MWS will save category data to download meta files.
+        - For already installed mods/old downloads: Use the "Get Missing Categories (MWS)" button in the list options drop down or the "Get Missing Category (MWS)" button on relevant mods.
+        - For files downloaded after updating to 0.4.0: ZIP files should instantly get their category. Non-zipped files such as loose PAK files should get their category around 4-6 seconds after installation.
+    - [MWS MO2 Plugin] Fix a bug that would only let a mod be checked for an update once until MO2 was restarted.
+    - [MWS MO2 Plugin] Added a 60 second cooldown to a mod's ability to be checked for an update via user input.
+
+- 0.3.1:
+    - [Basic Games] Support for installation of mods without subfolders.
+    - [Basic Games] Redid Raid Install Process.
+
+- 0.3.0:
+    - [Basic Games] Payday the Heist, PAYDAY 2, Raid WW II updated to handle Mods with multiple Components and Folder Choices (99% of mods should install correctly now)
+    - [Basic Games] Payday the Heist, PAYDAY 2, Raid WW II additional cleanup and sanity checks
+
+- 0.2.9:
+    - [Basic Games] Changed Icon for Video Content (Now using the modgroups icon)
+    - [Basic Games] Added Windrose Support
+
+- 0.2.8:
+    - [Installer - Non Zipped] vmz support
+    - [Road to Vostok] vmz support
+    - [Basic Games] Fixed behaviour for un fixable mods
+
+- 0.2.7:
+    - [Installer - Non Zipped] Removed unnecessary result type
+    - [Basic Games] Removed a file that did not belong
+
 - 0.2.6:
     - [MWS MO2 Plugin] Added ability to check MWS mods for updates
-    - [Installer - Non Zipped] Set repository and installationFile 4 seconds after installation
+    - [Installer - Non Zipped] Set repository and installationFile 4 seconds after installation since we can't do so normally
+    - [Installer - Non Zipped] Linted, Formatted and Cleaned
+    - [Basic Games] Linted, Formatted and Cleaned
 
 - 0.2.5:
     - [Basic Games] Update Road to Vostok Exe Name.
