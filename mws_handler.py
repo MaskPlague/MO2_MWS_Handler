@@ -13,19 +13,22 @@ try:
     from PyQt6.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle, 
                                  QStyledItemDelegate, QStyleOptionViewItem, QStyleOptionProgressBar, 
                                  QApplication, QPushButton, QMenu)
-    from PyQt6.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent, QThread
+    from PyQt6.QtCore import (Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent, QThread, 
+                              QFileInfo, QSettings, QTimer)
     from PyQt6.QtGui import QAction
 except ImportError:
     from PyQt5.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView, QStyle,  # type: ignore
                                  QStyledItemDelegate, QStyleOptionViewItem, QStyleOptionProgressBar, 
                                  QApplication, QPushButton, QMenu)
-    from PyQt5.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent, QThread # type: ignore
+    from PyQt5.QtCore import (Qt, QModelIndex, QObject, pyqtSignal, QAbstractItemModel, QEvent, QThread, # type: ignore
+                              QFileInfo, QSettings, QTimer) 
     from PyQt5.QtGui import QAction # type: ignore
 
 SIZE_COLUMN = 2
 STATUS_COLUMN = 1
 FILENAME_COLUMN = 0
 PROTOCOL = "mws-mo2"
+API_WAIT_TIME_MSEC = 60000 #60 seconds
 
 class Data_Holder():
     def __init__(self):
@@ -53,6 +56,8 @@ class ContextMenuHijacker(QObject):
         self.check_for_update_action = None
         self.workers = {}
         self.threads = {}
+        #List of mod ids that have recently been checked for an update within API_WAIT_TIME_MSEC to prevent API spam
+        self.recently_checked_for_update = []
 
         self.menu_obtained = False
         self.listOptions_menu: QMenu = None
@@ -127,6 +132,11 @@ class ContextMenuHijacker(QObject):
         modId = mod_handle.url().split('/')[-1]
         if modId in self.workers:
             return
+        if modId in self.recently_checked_for_update:
+            print(f"[{mod_handle.name()}] was recently checked for an update within the last {API_WAIT_TIME_MSEC/1000} seconds. Skipping to prevent API spam.")
+            return
+        self.recently_checked_for_update.append(modId)
+        QTimer.singleShot(API_WAIT_TIME_MSEC, lambda id=modId: self.remove_from_recent_update_list(id))
         old_version = mod_handle.newestVersion()
         worker = CheckForUpdateWorker(modId, mod_handle.name(), old_version.scheme())
         thread = QThread()
