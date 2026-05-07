@@ -180,9 +180,7 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
-/MWS Handler
-/basic_games
 installer_non_zipped.py
 *.zip
 Modworkshop - Mod Organizer 2 Plugins.zip.tmp
-/MWS Handler dist
+/MWS plugin dist
