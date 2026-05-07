@@ -99,6 +99,12 @@ class ContextMenuHijacker(QObject):
         elif event.type() == QEvent.Type.Show and obj == self.listOptions_menu: #on list options menu display add the MWS check for update action
             self.listOptions_menu.addAction(self.menu_check_all_for_update_action)
             self.listOptions_menu.addAction(self.menu_update_mod_categories_action)
+            if not self.menu_check_all_for_update_action in self.listOptions_menu.actions(): 
+                self.listOptions_menu.addAction(self.menu_check_all_for_update_action)
+            if not self.menu_update_mod_categories_action in self.listOptions_menu.actions(): 
+                self.listOptions_menu.addAction(self.menu_update_mod_categories_action)
+            if not self.menu_clear_and_get_categories_action in self.listOptions_menu.actions(): 
+                self.listOptions_menu.addAction(self.menu_clear_and_get_categories_action)
         
         return False
 
