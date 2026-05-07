@@ -34,7 +34,7 @@ class Event_Filter(QObject):
         self._organizer.refresh()
 
     def _init_categories(self):
-        self.init_categories()
+        self.init_categories(wait_time=0)
 
     def init_vars(self):
         self.visit_mws_action = None

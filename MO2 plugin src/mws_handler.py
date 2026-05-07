@@ -16,11 +16,11 @@ from .utils.event_filters import Event_Filter
 try:
     from PyQt6.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView,
                                  QApplication, QPushButton)
-    from PyQt6.QtCore import Qt, QFileInfo
+    from PyQt6.QtCore import Qt, QFileInfo, QTimer
 except ImportError:
     from PyQt5.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView,  # type: ignore
                                  QApplication, QPushButton)
-    from PyQt5.QtCore import Qt, QFileInfo # type: ignore
+    from PyQt5.QtCore import Qt, QFileInfo, QTimer # type: ignore
 
 class mws_protocol_register(mobase.IPlugin):
     def name(self):
@@ -128,7 +128,14 @@ class mws_protocol_register(mobase.IPlugin):
         subprocess.Popen([self.bat_file_path], shell=True, creationflags=subprocess.CREATE_NEW_CONSOLE)
         QApplication.quit()
 
-    def init_categories(self):
+    def restart_message(self):
+        button = QMessageBox.information(None, "Categories Updated from MWS", 
+                                        "Category data has been updated from MWS.\nPress Ok to restart MO2 and apply changes.",
+                                        QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+        if button == QMessageBox.StandardButton.Ok:
+            self.restart_mo2()
+
+    def init_categories(self, wait_time=500):
         game_plugin = self._organizer.managedGame()
         if hasattr(game_plugin, "CategorySource") and game_plugin.CategorySource.lower() == "modworkshop":
             print(f"The instance's game plugin's defined CategorySource is {game_plugin.CategorySource}")
@@ -141,11 +148,7 @@ class mws_protocol_register(mobase.IPlugin):
                     f.write(cat_data)
                 with open(os.path.join(self._organizer.basePath(), "nexuscatmap.dat"), "w", encoding="utf-8") as f:
                     f.write(nexus_cat_map)
-                button = QMessageBox.information(None, "Categories Updated from MWS", 
-                                                "Category data has been updated from MWS.\nPress Ok to restart MO2 and apply changes.",
-                                                QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
-                if button == QMessageBox.StandardButton.Ok:
-                    self.restart_mo2()
+                QTimer.singleShot(wait_time, self.restart_message)
             except Exception as e:
                 print(f"An error occurred while getting categories for {game_plugin.gameShortName()} ({game_plugin.gameName()}) from ModWorkshop API:")
                 print(e)
