@@ -4,7 +4,8 @@ rem Define Variables
 set EXE_NAME=MWS_Link_Handler
 set EXE_SCRIPT="MWS EXE src\mws_handler_exe.py"
 set M02_PLUGIN_SRC=.\MO2 plugin src
-set DIST_DIR=.\MWS plugin dist
+set DIST_DIR=.\MWS plugin dist\MWS Handler
+set ZIP_FILE_NAME=MWS MO2 Plugin.zip
 
 rem Replace these with your own directories
 set DEST_MO2_PLUGIN_DIR=D:\Modding\MO2\plugins\MWS Handler
@@ -44,6 +45,6 @@ robocopy "%M02_PLUGIN_SRC%" "%DIST_DIR%" /E
 echo -----------------------------------------
 echo Zipping for distribution
 
-%SEVEN_ZIP% a "MWS Handler.zip" "%DIST_DIR%" "changelog.txt"
+%SEVEN_ZIP% a "%ZIP_FILE_NAME%" "%DIST_DIR%" "changelog.txt"
 
 echo Done
