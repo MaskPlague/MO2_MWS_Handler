@@ -48,15 +48,15 @@ class ContextMenuHijacker(QObject):
         self.cancel_callback = cancel_callback
         self.modList: mobase.IModList = organizer.modList()
         self.download_path = organizer.downloadsPath()
-        self.organizer_refresh = organizer.refresh
+        self._organizer = organizer
         self.init_categories = init_categories
         self.init_vars()
 
     def _refresh(self):
-        self.organizer_refresh()
+        self._organizer.refresh()
 
     def _init_categories(self):
-        return self.init_categories(button=True)
+        self.init_categories()
 
     def init_vars(self):
         self.visit_mws_action = None
@@ -74,6 +74,8 @@ class ContextMenuHijacker(QObject):
         #List of mod ids that have recently been checked for an update within API_WAIT_TIME_MSEC to prevent API spam
         self.recently_checked_for_update = []
 
+        self.recently_got_categories = False
+
         self.menu_obtained = False
         self.listOptions_menu: QMenu = None
         self.next = False
@@ -81,6 +83,9 @@ class ContextMenuHijacker(QObject):
         self.menu_check_all_for_update_action.triggered.connect(self.check_all_for_update)
         self.menu_update_mod_categories_action = QAction("Get Missing Categories (MWS)")
         self.menu_update_mod_categories_action.triggered.connect(self.update_all_mod_categories)
+        self.menu_clear_and_get_categories_action = QAction("Reset and Get Category Data (MWS)")
+        self.menu_clear_and_get_categories_action.triggered.connect(self.clear_and_get_categories)
+        self.separator: QAction = None
 
     def eventFilter(self, obj: QObject, event: QEvent):
         if event.type() == QEvent.Type.Show and isinstance(obj, QMenu):
@@ -96,9 +101,12 @@ class ContextMenuHijacker(QObject):
                 self.next = False
                 self.menu_obtained = True
                 self.listOptions_menu = obj
-        elif event.type() == QEvent.Type.Show and obj == self.listOptions_menu: #on list options menu display add the MWS check for update action
-            self.listOptions_menu.addAction(self.menu_check_all_for_update_action)
-            self.listOptions_menu.addAction(self.menu_update_mod_categories_action)
+        elif event.type() == QEvent.Type.Show and obj == self.listOptions_menu: #on list options menu display add the MWS actions, if statements prevent accidental duplication of actions
+            if self.separator == None:
+                self.separator = self.listOptions_menu.addSeparator()
+                def set_none():
+                    self.separator = None
+                self.separator.destroyed.connect(set_none)
             if not self.menu_check_all_for_update_action in self.listOptions_menu.actions(): 
                 self.listOptions_menu.addAction(self.menu_check_all_for_update_action)
             if not self.menu_update_mod_categories_action in self.listOptions_menu.actions(): 
@@ -157,11 +165,6 @@ class ContextMenuHijacker(QObject):
                 self.update_missing_category_action = QAction("Get Missing Category (MWS)")
                 self.update_missing_category_action.triggered.connect(lambda checked, mh=mod_handle: self.update_mod_category(mod_handle))
                 menu.insertAction(menu.actions()[6], self.update_missing_category_action)
-
-
-    def remove_from_recent_update_list(self, modId):
-        if modId in self.recently_checked_for_update:
-            self.recently_checked_for_update.remove(modId)
     
     def check_for_update(self, mod_handle: mobase.IModInterface):
         if mod_handle.url() == "":
@@ -247,14 +250,25 @@ class ContextMenuHijacker(QObject):
             self._refresh()
 
     def update_all_mod_categories(self):
-        restart = self._init_categories()
-        if restart:
-            return
         for mod_name in self.modList.allMods():
             mod_handle = self.modList.getMod(mod_name)
             if mod_handle is not None and mod_handle.repository() == "ModWorkshop":
                 self.update_mod_category(mod_handle)
 
+    def clear_and_get_categories(self):
+        if self.recently_got_categories:
+            return
+        self.recently_got_categories = True
+        def set_false():
+            self.recently_got_categories = False
+        QTimer.singleShot(API_WAIT_TIME_MSEC, set_false)
+        cat_dat_path = os.path.join(self._organizer.basePath(), "categories.dat")
+        nexus_cat_map_dat_path = os.path.join(self._organizer.basePath(), "nexuscatmap.dat")
+        if os.path.exists(cat_dat_path):
+            os.remove(cat_dat_path)
+        if os.path.exists(nexus_cat_map_dat_path):
+            os.remove(nexus_cat_map_dat_path)
+        self._init_categories()     
 
 class CheckForUpdateWorker(QObject):
     finished_signal = pyqtSignal(str, str, str)
@@ -543,29 +557,24 @@ class mws_protocol_register(mobase.IPlugin):
         except:
             return categories_string, fake_nexus_categories_string
 
-    def init_categories(self, button=False):
+    def init_categories(self):
         game_plugin = self._organizer.managedGame()
         if hasattr(game_plugin, "CategorySource") and game_plugin.CategorySource.lower() == "modworkshop":
             print(f"The instance's game plugin's defined CategorySource is {game_plugin.CategorySource}")
             if self.categoryFileInfo().exists() and self.categoryFileInfo().size() != 0:
                 print(f"Categories.dat already contains data. Skipping retrieval from MWS.")
-                return False
+                return
             try:
                 cat_data, nexus_cat_map = self.get_categories(game_plugin.gameShortName(), game_plugin.gameName())
                 with open(os.path.join(self._organizer.basePath(), "categories.dat"), "w", encoding="utf-8") as f:
                     f.write(cat_data)
                 with open(os.path.join(self._organizer.basePath(), "nexuscatmap.dat"), "w", encoding="utf-8") as f:
                     f.write(nexus_cat_map)
-                if button:
-                    QMessageBox.information(None, "Categories Updated from MWS", "Category data has been updated from MWS. Please restart MO2 to apply. "+
-                                                                                "Click the button again after restarting to get the missing categories for mods.")
-                else:
-                    QMessageBox.information(None, "Categories Updated from MWS", "Category data has been updated from MWS, please restart MO2 to apply.")
-                return True
+                QMessageBox.information(None, "Categories Updated from MWS", "Category data has been updated from MWS, please restart MO2 to apply.")
+                return
             except Exception as e:
                 print(f"An error occurred while getting categories for {game_plugin.gameShortName()} ({game_plugin.gameName()}) from ModWorkshop API:")
                 print(e)
-        return False
         
 
     def _onUserInterfaceInitialized(self, main_window: QMainWindow):
