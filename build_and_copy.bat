@@ -1,60 +1,49 @@
 @echo off
-rem Define Variables
 
+rem Define Variables
 set EXE_NAME=MWS_Link_Handler
 set EXE_SCRIPT=mws_handler_exe.py
-set INIT_SCRIPT=__init__.py
-set MWS_SCRIPT=mws_handler.py
-set DIST_DIR=.\MWS Handler
+set M02_PLUGIN_SRC=.\MO2 plugin src
+set DIST_DIR=.\MWS Handler dist
 
 rem Replace these with your own directories
-set DEST_DIR=D:\Modding\MO2\plugins\MWS Handler
+set DEST_MO2_PLUGIN_DIR=D:\Modding\MO2\plugins\MWS Handler
 set SEVEN_ZIP="C:\Program Files\7-Zip\7z.exe"
 
-IF "%1"=="all" (
-    echo Starting PyInstaller build for %EXE_SCRIPT%...
-    pyinstaller %EXE_SCRIPT% --onefile -n %EXE_NAME% --noconsole
+rem Build EXE via PyInstaller
+echo Starting PyInstaller build for %EXE_SCRIPT%...
+pyinstaller %EXE_SCRIPT% --onefile -n %EXE_NAME% --noconsole
 
-    rem Check if PyInstaller was successful
+rem Check if PyInstaller was successful
 
-    IF %ERRORLEVEL% NEQ 0 (
-        echo PyInstaller build failed!
-        pause
-        EXIT /B 1
-    )
-    echo -----------------------------------------
+IF %ERRORLEVEL% NEQ 0 (
+    echo PyInstaller build failed!
+    pause
+    EXIT /B 1
 )
+echo -----------------------------------------
 
 set SOURCE_EXE_PATH=.\dist\%EXE_NAME%.exe
 
 rem create dest if it doesn't exist
-IF NOT EXIST "%DEST_DIR%" MKDIR "%DEST_DIR%""
+IF NOT EXIST "%DEST_MO2_PLUGIN_DIR%" MKDIR "%DEST_MO2_PLUGIN_DIR%""
 
 rem copy files to destination
-IF "%1"=="all" (
-    echo Copying the executable from "%SOURCE_EXE_PATH%" to "%DEST_DIR%"...
-    copy "%SOURCE_EXE_PATH%" "%DEST_DIR%"
-)
+echo Copying the executable from "%SOURCE_EXE_PATH%" to "%DEST_MO2_PLUGIN_DIR%"...
+copy "%SOURCE_EXE_PATH%" "%DEST_MO2_PLUGIN_DIR%"
 
-echo Copying "%INIT_SCRIPT%" to "%DEST_DIR%"...
-copy "%INIT_SCRIPT%" "%DEST_DIR%"
-
-echo Copying "%MWS_SCRIPT%" to "%DEST_DIR%"...
-copy "%MWS_SCRIPT%" "%DEST_DIR%"
+echo Copying "%M02_PLUGIN_SRC%" to "%DEST_MO2_PLUGIN_DIR%"...
+robocopy "%M02_PLUGIN_SRC%" "%DEST_MO2_PLUGIN_DIR%" /E
 
 echo -----------------------------------------
 IF NOT EXIST "%DIST_DIR%" MKDIR "%DIST_DIR%""
 echo Now copying for distribution
 copy "%SOURCE_EXE_PATH%" "%DIST_DIR%"
-copy "%INIT_SCRIPT%" "%DIST_DIR%"
-copy "%MWS_SCRIPT%" "%DIST_DIR%"
+robocopy "%M02_PLUGIN_SRC%" "%DIST_DIR%" /E
 
-if "%1"=="all" (
-    echo -----------------------------------------
-    echo Zipping for distribution
+echo -----------------------------------------
+echo Zipping for distribution
 
-    %SEVEN_ZIP% a "Modworkshop - Mod Organizer 2 Plugins.zip" "%DIST_DIR%" ".\basic_games" "installer_non_zipped.py" "changelog.txt"
-    rem %SEVEN_ZIP% a "Modworkshop - Mod Organizer 2 Plugins.zip" "%DIST_DIR%" "changelog.txt"
-)
+%SEVEN_ZIP% a "MWS Handler.zip" "%DIST_DIR%" "changelog.txt"
 
 echo Done
