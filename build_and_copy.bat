@@ -4,7 +4,7 @@ rem Define Variables
 set EXE_NAME=MWS_Link_Handler
 set EXE_SCRIPT=mws_handler_exe.py
 set M02_PLUGIN_SRC=.\MO2 plugin src
-set DIST_DIR=.\MWS Handler dist
+set DIST_DIR=.\MWS plugin dist
 
 rem Replace these with your own directories
 set DEST_MO2_PLUGIN_DIR=D:\Modding\MO2\plugins\MWS Handler
