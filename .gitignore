@@ -185,3 +185,4 @@ cython_debug/
 installer_non_zipped.py
 *.zip
 Modworkshop - Mod Organizer 2 Plugins.zip.tmp
+/MWS Handler dist
