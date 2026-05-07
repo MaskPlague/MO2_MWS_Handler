@@ -2,7 +2,7 @@
 
 rem Define Variables
 set EXE_NAME=MWS_Link_Handler
-set EXE_SCRIPT=mws_handler_exe.py
+set EXE_SCRIPT="MWS EXE src\mws_handler_exe.py"
 set M02_PLUGIN_SRC=.\MO2 plugin src
 set DIST_DIR=.\MWS plugin dist
 
