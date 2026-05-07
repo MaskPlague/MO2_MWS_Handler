@@ -98,18 +98,18 @@ class mws_protocol_register(mobase.IPlugin):
     
     def get_categories(self, game_short_name, game_name):
         categories_link = f"https://api.modworkshop.net/games/{game_short_name}/categories"
-        fake_categories_data = [f"1|{game_name}|0\n"]
-        categories_data = [f"1|{game_name}|0\n"]
+        fake_categories_data = [[1, f"1|{game_name}|0\n"]]
+        categories_data = [[1, f"1|{game_name}|0\n"]]
         try:
             data = self._get_json_from_link(categories_link)
             
             for category in data["data"]:
-                fake_categories_data.append(f"{category["id"]}|{category["name"]}|{category["id"]}\n")
-                categories_data.append(f"{category["id"]}|{category["name"]}|{category["parent_id"] if category["parent_id"] != None else "0"}\n")
-            categories_data.sort()
-            fake_categories_data.sort()
-            categories_string = ''.join(categories_data)
-            fake_nexus_categories_string = ''.join(fake_categories_data)
+                fake_categories_data.append([int(category["id"]), f"{category["id"]}|{category["name"]}|{category["id"]}\n"])
+                categories_data.append([int(category["id"]), f"{category["id"]}|{category["name"]}|{category["parent_id"] if category["parent_id"] != None else "0"}\n"])
+            categories_data.sort(key=lambda c: c[0])
+            fake_categories_data.sort(key=lambda c: c[0])
+            categories_string = ''.join([p[1] for p in categories_data])
+            fake_nexus_categories_string = ''.join([p[1] for p in fake_categories_data])
             return categories_string, fake_nexus_categories_string
         except:
             return categories_string, fake_nexus_categories_string

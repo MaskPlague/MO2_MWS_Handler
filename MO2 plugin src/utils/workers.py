@@ -62,7 +62,7 @@ class UpdateCategoryWorker(QObject):
         mod_link = f"https://api.modworkshop.net/mods/{self.modId}/"
         try:
             json_data = self._get_json_from_link(mod_link)
-            category_id = str(json_data.get("category_id", "0"))
+            category_id = str(int(json_data.get("category_id", "1")))
         except:
-            category_id = "0"
+            category_id = "1"
         self.finished_signal.emit(self.modId, category_id, self.name)
