@@ -2,8 +2,8 @@
 
 from urllib.request import urlopen
 
-from data_holder import Data_Holder
-from globals import *
+from .data_holder import Data_Holder
+from ..globals import *
 
 try:
     from PyQt6.QtWidgets import (QStyle, QStyledItemDelegate, QStyleOptionViewItem,

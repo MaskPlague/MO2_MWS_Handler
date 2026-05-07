@@ -4,8 +4,8 @@ import socket
 import json
 import threading
 
-from globals import *
-from data_holder import Data_Holder
+from ..globals import *
+from .data_holder import Data_Holder
 
 try:
     from PyQt6.QtCore import QObject, pyqtSignal

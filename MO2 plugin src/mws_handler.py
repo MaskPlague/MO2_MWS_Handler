@@ -7,11 +7,11 @@ import subprocess
 
 from urllib.request import urlopen
 
-from globals import *
+from .globals import *
 from .utils.data_holder import Data_Holder
 from .utils.download_progress_listener import ProgressListener
 from .utils.download_delegate import HybridDownloadDelegate
-from .utils.context_menu import ContextMenuHijacker
+from .utils.event_filters import Event_Filter
 
 try:
     from PyQt6.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView,
@@ -161,7 +161,7 @@ class mws_protocol_register(mobase.IPlugin):
         downloadView = downloadTab.findChild(QTreeView, "downloadView")
 
         #Takeover the context menu for downloads
-        self.menu_hijacker = ContextMenuHijacker(
+        self.event_filter = Event_Filter(
             downloadView, 
             modList,
             self.data_holder, 
@@ -169,7 +169,7 @@ class mws_protocol_register(mobase.IPlugin):
             self._organizer,
             self.init_categories
         )
-        QApplication.instance().installEventFilter(self.menu_hijacker)
+        QApplication.instance().installEventFilter(self.event_filter)
 
         #Set game for checking if download is for correct game
         try:

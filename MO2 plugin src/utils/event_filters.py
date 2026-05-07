@@ -4,9 +4,9 @@ import mobase # type: ignore
 import configparser
 import webbrowser
 
-from data_holder import Data_Holder
+from .data_holder import Data_Holder
 from ..globals import *
-from workers import *
+from .workers import *
 
 try:
     from PyQt6.QtWidgets import QTreeView, QMenu
@@ -17,7 +17,7 @@ except ImportError:
     from PyQt5.QtCore import Qt, QObject, QEvent, QThread, QSettings, QTimer # type: ignore
     from PyQt5.QtGui import QAction # type: ignore
 
-class ContextMenuHijacker(QObject):
+class Event_Filter(QObject):
     def __init__(self, download_view, modList_view, data_holder, cancel_callback, organizer: mobase.IOrganizer, init_categories):
         super().__init__()
         self.download_view: QTreeView = download_view
