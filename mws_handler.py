@@ -120,7 +120,9 @@ class ContextMenuHijacker(QObject):
                 if i not in (3,4,5):
                     menu.removeAction(action)
             action = menu.addAction("Cancel Download (MWS)")
-            action.triggered.connect(lambda checked, f=file_name: self.cancel_callback(f))
+            def cancel_callback(): 
+                self.cancel_callback(file_name)
+            action.triggered.connect(cancel_callback)
         else:
             meta_file = os.path.join(self.download_path,file_name) +'.meta'
             try:
@@ -131,7 +133,9 @@ class ContextMenuHijacker(QObject):
                     url = ini.get("General", "url")
                     menu.removeAction(menu.actions()[1])
                     self.visit_mws_action = QAction("Visit on ModWorkshop")
-                    self.visit_mws_action.triggered.connect(lambda checked, link=url: self.open_mws_link(link))
+                    def open_mws_link(): 
+                        webbrowser.open(url)       
+                    self.visit_mws_action.triggered.connect(open_mws_link)
                     menu.insertAction(menu.actions()[1], self.visit_mws_action)
             except Exception as e:
                 pass
@@ -171,7 +175,10 @@ class ContextMenuHijacker(QObject):
             print(f"[{mod_handle.name()}] was recently checked for an update within the last {API_WAIT_TIME_MSEC/1000} seconds. Skipping to prevent API spam.")
             return
         self.recently_checked_for_update.append(modId)
-        QTimer.singleShot(API_WAIT_TIME_MSEC, lambda id=modId: self.remove_from_recent_update_list(id))
+        def remove_from_recent_update_list(): 
+            if modId in self.recently_checked_for_update: 
+                self.recently_checked_for_update.remove(modId)
+        QTimer.singleShot(API_WAIT_TIME_MSEC, remove_from_recent_update_list)
         old_version = mod_handle.newestVersion()
         worker = CheckForUpdateWorker(modId, mod_handle.name(), old_version.scheme())
         thread = QThread()
@@ -248,8 +255,6 @@ class ContextMenuHijacker(QObject):
             if mod_handle is not None and mod_handle.repository() == "ModWorkshop":
                 self.update_mod_category(mod_handle)
 
-    def open_mws_link(self, link):
-        webbrowser.open(link)            
 
 class CheckForUpdateWorker(QObject):
     finished_signal = pyqtSignal(str, str, str)
