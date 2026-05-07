@@ -4,6 +4,12 @@ Installation:
 - - -
 
 Change log:
+- 0.4.1:
+    - [MWS MO2 Plugin] Add action to clear and re-grab game categories from MWS.
+    - [MWS MO2 Plugin] Moved classes to separate files (plugin got too large to manage in only one .py file)
+    - [MWS MO2 Plugin] Fix duplicate actions appearing in the list options menu.
+    - [MWS MO2 Plugin] Make the message box that informs you that you need to restart MO2, automatically re-start MO2.
+
 - 0.4.0:
     - [Installer - Non Zipped, MWS MO2 Plugin, Link Handler] 
         Category Support:
