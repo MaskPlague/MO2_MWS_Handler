@@ -11,7 +11,7 @@
 6. Restart Mod Organizer 2 if it is running.
 
 ## How to build yourself:
-Install Python and PyInstaller. Replace the paths/vars in the batch file with your own. Run the Build_and_copy.py file and input "y" to build the exe and copy all files to their destinations.
+Install Python and PyInstaller. Replace the paths/vars in the batch file with your own. Run the Build_and_copy.py file to build the exe and copy all files to their destinations.
 
 ## Credits
 
