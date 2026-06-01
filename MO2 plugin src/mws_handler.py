@@ -16,13 +16,16 @@ from .utils.event_filters import Event_Filter
 try:
     from PyQt6.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView,
                                  QApplication, QPushButton)
-    from PyQt6.QtCore import Qt, QFileInfo, QTimer
+    from PyQt6.QtCore import Qt, QFileInfo, QTimer, QCoreApplication
 except ImportError:
-    from PyQt5.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView,  # type: ignore
+    from PyQt5.QtWidgets import (QMessageBox, QMainWindow, QTabWidget, QWidget, QTreeView,
                                  QApplication, QPushButton)
-    from PyQt5.QtCore import Qt, QFileInfo, QTimer # type: ignore
+    from PyQt5.QtCore import Qt, QFileInfo, QTimer, QCoreApplication
 
 class mws_protocol_register(mobase.IPlugin):
+    def tr(self, text:str):
+        return QCoreApplication.translate("mws_protocol_register", text)
+
     def name(self):
         return "MWS-MO2 Protocol Register"
     
@@ -130,8 +133,9 @@ class mws_protocol_register(mobase.IPlugin):
         QApplication.quit()
 
     def restart_message(self):
-        button = QMessageBox.information(None, "Categories Updated from MWS", 
-                                        "Category data has been updated from MWS.\nPress Ok to restart MO2 and apply changes.",
+        button = QMessageBox.information(None, self.tr("Categories Updated from MWS"), 
+                                        self.tr("Category data has been updated from MWS.\n"\
+                                                "Press Ok to restart MO2 and apply changes."),
                                         QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
         if button == QMessageBox.StandardButton.Ok:
             self.restart_mo2()
@@ -236,7 +240,7 @@ class mws_protocol_register(mobase.IPlugin):
         except Exception as e:
             print(f"Failed to register protocol: {e}")
             self._organizer.setPluginSetting(self.name(), f"{PROTOCOL.upper()} Protocol Registered", False)
-            QMessageBox.warning(None, f"{PROTOCOL.upper()} Protocol Register Failed", f"Failed to regester protocol to the registry for {PROTOCOL.upper()} links (ModWorkshop.net)")
+            QMessageBox.warning(None, PROTOCOL.upper() + self.tr(" Protocol Register Failed"), self.tr("Failed to regester protocol to the registry for  %1 links (ModWorkshop.net)").replace("%1", PROTOCOL.upper()))
 
     def settings(self):
         return [
@@ -244,4 +248,4 @@ class mws_protocol_register(mobase.IPlugin):
             ]
     
     def description(self):
-        return f"Registers the {PROTOCOL.upper()} protocol to handle downloads."
+        return self.tr("Registers the %1 protocol to handle downloads.").replace("%1", PROTOCOL.upper())

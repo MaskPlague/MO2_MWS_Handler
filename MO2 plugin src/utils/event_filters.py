@@ -10,13 +10,16 @@ from .workers import *
 
 try:
     from PyQt6.QtWidgets import QTreeView, QMenu
-    from PyQt6.QtCore import Qt, QObject, QEvent, QThread, QSettings, QTimer, QMutex, QMutexLocker
+    from PyQt6.QtCore import Qt, QObject, QEvent, QThread, QSettings, QTimer, QMutex, QMutexLocker, QCoreApplication
     from PyQt6.QtGui import QAction
 except ImportError:
     from PyQt5.QtWidgets import QTreeView, QMenu, QAction
-    from PyQt5.QtCore import Qt, QObject, QEvent, QThread, QSettings, QTimer, QMutex, QMutexLocker
+    from PyQt5.QtCore import Qt, QObject, QEvent, QThread, QSettings, QTimer, QMutex, QMutexLocker, QCoreApplication
     
 class Event_Filter(QObject):
+    def tr(self, text:str):
+        return QCoreApplication.translate("Event_Filter", text)
+
     def __init__(self, download_view, modList_view, data_holder, cancel_callback, organizer: mobase.IOrganizer, init_categories):
         super().__init__()
         self.download_view: QTreeView = download_view
@@ -56,11 +59,11 @@ class Event_Filter(QObject):
         self.menu_obtained = False
         self.listOptions_menu: QMenu = None
         self.next = False
-        self.menu_check_all_for_update_action = QAction("Check for updates (MWS)")
+        self.menu_check_all_for_update_action = QAction(self.tr("Check for updates (MWS)"))
         self.menu_check_all_for_update_action.triggered.connect(self.check_all_for_update)
-        self.menu_update_mod_categories_action = QAction("Get Missing Categories (MWS)")
+        self.menu_update_mod_categories_action = QAction(self.tr("Get Missing Categories (MWS)"))
         self.menu_update_mod_categories_action.triggered.connect(self.update_all_mod_categories)
-        self.menu_clear_and_get_categories_action = QAction("Reset and Get Category Data (MWS)")
+        self.menu_clear_and_get_categories_action = QAction(self.tr("Reset and Get Category Data (MWS)"))
         self.menu_clear_and_get_categories_action.triggered.connect(self.clear_and_get_categories)
         self.separator: QAction = None
         self.mutex = QMutex()
@@ -106,7 +109,7 @@ class Event_Filter(QObject):
             for i, action in enumerate(menu.actions()):
                 if i not in (3,4,5):
                     menu.removeAction(action)
-            action = menu.addAction("Cancel Download (MWS)")
+            action = menu.addAction(self.tr("Cancel Download (MWS)"))
             def cancel_callback(): 
                 self.cancel_callback(file_name)
             action.triggered.connect(cancel_callback)
@@ -119,7 +122,7 @@ class Event_Filter(QObject):
                 if repo == "ModWorkshop":
                     url = ini.get("General", "url")
                     menu.removeAction(menu.actions()[1])
-                    self.visit_mws_action = QAction("Visit on ModWorkshop")
+                    self.visit_mws_action = QAction(self.tr("Visit on ModWorkshop"))
                     def open_mws_link(): 
                         webbrowser.open(url)       
                     self.visit_mws_action.triggered.connect(open_mws_link)
@@ -137,11 +140,11 @@ class Event_Filter(QObject):
         if mod_handle is None:
             return
         if mod_handle.repository() == "ModWorkshop":
-            self.check_for_update_action = QAction("Check for Update (MWS)")
+            self.check_for_update_action = QAction(self.tr("Check for Update (MWS)"))
             self.check_for_update_action.triggered.connect(lambda checked, mh=mod_handle: self.check_for_update(mh))
             menu.insertAction(menu.actions()[5], self.check_for_update_action)
             if not mod_handle.categories():
-                self.update_missing_category_action = QAction("Get Missing Category (MWS)")
+                self.update_missing_category_action = QAction(self.tr("Get Missing Category (MWS)"))
                 self.update_missing_category_action.triggered.connect(lambda checked, mh=mod_handle: self.update_mod_category(mod_handle))
                 menu.insertAction(menu.actions()[6], self.update_missing_category_action)
     
