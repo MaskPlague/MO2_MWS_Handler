@@ -38,7 +38,7 @@ class mws_handler():
         self.sock = None
         self.downloading = True
         self.e = None
-        self.category_id = 0
+        self.category_id = 1
 
     def main(self):
         #sys.argv should be [exe, download location, mws url protocol link]
