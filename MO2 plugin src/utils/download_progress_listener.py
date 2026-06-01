@@ -29,7 +29,7 @@ class ProgressListener(QObject):
         try:
             self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.server_socket.bind(('127.0.0.1', 0))
+            self.server_socket.bind(("127.0.0.1", 0))
             #Get socket for EXE to read from registry
             port = self.server_socket.getsockname()[1]
             base = winreg.HKEY_CURRENT_USER
@@ -56,14 +56,14 @@ class ProgressListener(QObject):
                     data = conn.recv(1024)
                     if not data:
                         break
-                    buffer += data.decode('utf-8')
+                    buffer += data.decode("utf-8")
                     while "\n" in buffer:
                         line, buffer = buffer.split("\n", 1)
                         try:
                             msg = json.loads(line)
-                            file_name = msg['file']
-                            progress = msg['cur']
-                            total = msg['max']
+                            file_name = msg["file"]
+                            progress = msg["cur"]
+                            total = msg["max"]
                             if current_filename is None:
                                 current_filename = file_name
                                 self.active_sockets[file_name] = conn
@@ -88,7 +88,7 @@ class ProgressListener(QObject):
                 
                 # Send the cancel command
                 cmd = json.dumps({"action": "cancel"}) + "\n"
-                conn.sendall(cmd.encode('utf-8'))
+                conn.sendall(cmd.encode("utf-8"))
                 data = self.data_holder.data.get(file_name)
                 if data:
                     self.data_holder.data.update(

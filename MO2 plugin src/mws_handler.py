@@ -105,8 +105,8 @@ class mws_protocol_register(mobase.IPlugin):
             data = self._get_json_from_link(categories_link)
             
             for category in data["data"]:
-                fake_categories_data.append([int(category["id"]), f"{category["id"]}|{category["name"]}|{category["id"]}\n"])
-                categories_data.append([int(category["id"]), f"{category["id"]}|{category["name"]}|{category["parent_id"] if category["parent_id"] != None else "0"}\n"])
+                fake_categories_data.append([int(category["id"]), f"{category['id']}|{category['name']}|{category['id']}\n"])
+                categories_data.append([int(category["id"]), f"{category['id']}|{category['name']}|{category['parent_id'] if category['parent_id'] != None else '0'}\n"])
             categories_data.sort(key=lambda c: c[0])
             fake_categories_data.sort(key=lambda c: c[0])
             categories_string = ''.join([p[1] for p in categories_data])
@@ -158,7 +158,7 @@ class mws_protocol_register(mobase.IPlugin):
         if self.ui_inited:
             return
         self.ui_inited = True
-        
+
         self.init_categories()
         if self.main_window is None:
             self.main_window = main_window

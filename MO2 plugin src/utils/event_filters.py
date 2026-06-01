@@ -13,10 +13,9 @@ try:
     from PyQt6.QtCore import Qt, QObject, QEvent, QThread, QSettings, QTimer, QMutex, QMutexLocker
     from PyQt6.QtGui import QAction
 except ImportError:
-    from PyQt5.QtWidgets import QTreeView, QMenu
+    from PyQt5.QtWidgets import QTreeView, QMenu, QAction
     from PyQt5.QtCore import Qt, QObject, QEvent, QThread, QSettings, QTimer, QMutex, QMutexLocker
-    from PyQt5.QtGui import QAction
-
+    
 class Event_Filter(QObject):
     def __init__(self, download_view, modList_view, data_holder, cancel_callback, organizer: mobase.IOrganizer, init_categories):
         super().__init__()
