@@ -42,6 +42,7 @@ class mws_protocol_register(mobase.IPlugin):
         self.data_holder:Data_Holder = Data_Holder()
         self.listener = ProgressListener(self.data_holder)
         self.listener.progress_received.connect(self.on_external_progress)
+        self.ui_inited = False
         
         #Bat file to restart MO2
         self.bat_file_path = os.path.join(os.path.dirname(self._organizer.getPluginDataPath()), "MWS Handler/restart_mo2.bat")
@@ -154,6 +155,10 @@ class mws_protocol_register(mobase.IPlugin):
                 print(e)
 
     def _onUserInterfaceInitialized(self, main_window: QMainWindow):
+        if self.ui_inited:
+            return
+        self.ui_inited = True
+        
         self.init_categories()
         if self.main_window is None:
             self.main_window = main_window
