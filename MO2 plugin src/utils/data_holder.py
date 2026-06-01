@@ -1,5 +1,10 @@
-from PyQt6.QtCore import QAbstractItemModel
-from PyQt6.QtWidgets import QTreeView
+#Written by MaskPlague
+try:
+    from PyQt6.QtCore import QAbstractItemModel
+    from PyQt6.QtWidgets import QTreeView
+except ImportError:
+    from PyQt5.QtCore import QAbstractItemModel
+    from PyQt5.QtWidgets import QTreeView
 
 class Data_Holder():
     def __init__(self):
