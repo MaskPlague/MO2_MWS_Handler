@@ -1,4 +1,4 @@
-#Written by MaskPlauge
+#Written by MaskPlague
 import winreg
 import socket
 import json

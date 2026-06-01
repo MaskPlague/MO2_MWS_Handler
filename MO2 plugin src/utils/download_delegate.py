@@ -1,4 +1,4 @@
-#Written by MaskPlauge
+#Written by MaskPlague
 
 from urllib.request import urlopen
 

@@ -1,4 +1,4 @@
-#Written by MaskPlauge
+#Written by MaskPlague
 import mobase # type: ignore
 import json
 

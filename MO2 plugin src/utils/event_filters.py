@@ -1,4 +1,4 @@
-#Written by MaskPlauge
+#Written by MaskPlague
 import os
 import mobase # type: ignore
 import configparser
