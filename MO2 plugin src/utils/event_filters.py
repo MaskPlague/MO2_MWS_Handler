@@ -10,12 +10,12 @@ from .workers import *
 
 try:
     from PyQt6.QtWidgets import QTreeView, QMenu
-    from PyQt6.QtCore import Qt, QObject, QEvent, QThread, QSettings, QTimer
+    from PyQt6.QtCore import Qt, QObject, QEvent, QThread, QSettings, QTimer, QMutex, QMutexLocker
     from PyQt6.QtGui import QAction
 except ImportError:
-    from PyQt5.QtWidgets import QTreeView, QMenu # type: ignore
-    from PyQt5.QtCore import Qt, QObject, QEvent, QThread, QSettings, QTimer # type: ignore
-    from PyQt5.QtGui import QAction # type: ignore
+    from PyQt5.QtWidgets import QTreeView, QMenu
+    from PyQt5.QtCore import Qt, QObject, QEvent, QThread, QSettings, QTimer, QMutex, QMutexLocker
+    from PyQt5.QtGui import QAction
 
 class Event_Filter(QObject):
     def __init__(self, download_view, modList_view, data_holder, cancel_callback, organizer: mobase.IOrganizer, init_categories):
@@ -64,6 +64,7 @@ class Event_Filter(QObject):
         self.menu_clear_and_get_categories_action = QAction("Reset and Get Category Data (MWS)")
         self.menu_clear_and_get_categories_action.triggered.connect(self.clear_and_get_categories)
         self.separator: QAction = None
+        self.mutex = QMutex()
 
     def eventFilter(self, obj: QObject, event: QEvent):
         if event.type() == QEvent.Type.Show and isinstance(obj, QMenu):
@@ -80,17 +81,18 @@ class Event_Filter(QObject):
                 self.menu_obtained = True
                 self.listOptions_menu = obj
         elif event.type() == QEvent.Type.Show and obj == self.listOptions_menu: #on list options menu display add the MWS actions, if statements prevent accidental duplication of actions
-            if self.separator == None:
-                self.separator = self.listOptions_menu.addSeparator()
-                def set_none():
-                    self.separator = None
-                self.separator.destroyed.connect(set_none)
-            if not self.menu_check_all_for_update_action in self.listOptions_menu.actions(): 
-                self.listOptions_menu.addAction(self.menu_check_all_for_update_action)
-            if not self.menu_update_mod_categories_action in self.listOptions_menu.actions(): 
-                self.listOptions_menu.addAction(self.menu_update_mod_categories_action)
-            if not self.menu_clear_and_get_categories_action in self.listOptions_menu.actions(): 
-                self.listOptions_menu.addAction(self.menu_clear_and_get_categories_action)
+            with QMutexLocker(self.mutex):
+                if self.separator == None:
+                    self.separator = self.listOptions_menu.addSeparator()
+                    def set_none():
+                        self.separator = None
+                    self.separator.destroyed.connect(set_none)
+                if not self.menu_check_all_for_update_action in self.listOptions_menu.actions(): 
+                    self.listOptions_menu.addAction(self.menu_check_all_for_update_action)
+                if not self.menu_update_mod_categories_action in self.listOptions_menu.actions(): 
+                    self.listOptions_menu.addAction(self.menu_update_mod_categories_action)
+                if not self.menu_clear_and_get_categories_action in self.listOptions_menu.actions(): 
+                    self.listOptions_menu.addAction(self.menu_clear_and_get_categories_action)
         
         return False
 
